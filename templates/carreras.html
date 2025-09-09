@@ -1,15 +1,120 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>carreras - Sistema de Gestión Académica</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carreras - Sistema de Gestión Académica</title>
+
+  <!-- Estilos -->
+  <link 
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" 
+    rel="stylesheet" 
+  />
+  <link 
+    rel="stylesheet" 
+    href="{{ url_for('static', filename='css/styles.css') }}" 
+  />
+
+  <!-- Script -->
+  <script>
+    function showCarreras() {
+      // Oculta todas las pestañas
+      var tabContents = document.getElementsByClassName("tab-content");
+      for (var i = 0; i < tabContents.length; i++) {
+        tabContents[i].style.display = "none";
+      }
+      // Muestra la pestaña de Carreras
+      document.getElementById("carreras").style.display = "block";
+    }
+  </script>
 </head>
+
 <body>
-    <div class="container">
-        {% include 'navbar.html' %}
+  {% include 'navbar.html' %}
+
+  <div class="container align-content-center align-items-center">
+    <div id="carreras" class="tab-content" style="display: none;">
+      
+      <h5 class="text-primary mt-5">Listado de Carreras</h5>
+      
+      <!-- Formulario de búsqueda -->
+      <form method="GET" action="{{ url_for('carreras') }}" class="form-inline mb-3">
+        <input type="hidden" name="table" value="carreras" />
+        
+        <input 
+          type="text" 
+          name="nombre" 
+          class="form-control mr-2" 
+          placeholder="Buscar por nombre" 
+          value="{{ nombre_busqueda or '' }}" 
+        />
+        
+        <!-- Filtro de estado -->
+        <label class="mr-2">Estado:</label>
+        
+        <div class="form-check form-check-inline">
+          <input 
+            class="form-check-input" 
+            type="radio" 
+            name="activo" 
+            value="todos" 
+            id="todos" 
+            {% if estado_activo == 'todos' %}checked{% endif %} 
+          />
+          <label class="form-check-label" for="todos">Todos</label>
+        </div>
+        
+        <div class="form-check form-check-inline">
+          <input 
+            class="form-check-input" 
+            type="radio" 
+            name="activo" 
+            value="activos" 
+            id="activos" 
+            {% if estado_activo == 'activos' %}checked{% endif %} 
+          />
+          <label class="form-check-label" for="activos">Activos</label>
+        </div>
+        
+        <div class="form-check form-check-inline">
+          <input 
+            class="form-check-input" 
+            type="radio" 
+            name="activo" 
+            value="inactivos" 
+            id="inactivos" 
+            {% if estado_activo == 'inactivos' %}checked{% endif %} 
+          />
+          <label class="form-check-label" for="inactivos">Inactivos</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary boton-buscar ml-2">Buscar</button>
+      </form>
+
+      <!-- Tabla de carreras -->
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Descripción</th>
+            <th>Activo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for carrera in carreras %}
+          <tr>
+            <td>{{ carrera[0] }}</td>
+            <td>{{ carrera[1] }}</td>
+            <td>{{ carrera[2] }}</td>
+            <td>{{ 'Sí' if carrera[3] else 'No' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      
     </div>
+  </div>
 </body>
+
 </html>
