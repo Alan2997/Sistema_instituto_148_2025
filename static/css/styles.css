@@ -325,6 +325,13 @@ th{
     margin-right: 10px;
 }
 
+.container-carreras {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    
+}
+
 
 
 /*.form-group{
