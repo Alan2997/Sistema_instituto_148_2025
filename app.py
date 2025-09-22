@@ -576,6 +576,23 @@ def editar_ingresante(id_usuario):
         alumno_turno=alumno_turno
     )
 
+@app.route("/agregar_carrera", methods=["GET", "POST"])
+def agregar_carrera():
+    if request.method == "POST":
+        id_carrera = request.form["id_carrera"]
+        nombre = request.form["nombre"]
+        descripcion = request.form["descripcion"]
+        tipo = request.form["tipo"]
+        anio = request.form["anio"]
+        ley = request.form["ley"]
+        fecha = request.form["fecha"]
+
+        # Aquí guardas en la BD
+        # ...
+
+        return redirect(url_for("carreras"))  # vuelve a la lista de carreras
+
+    return render_template("agregar_carrera.html")
 
 @app.route('/ingresante/<int:id_usuario>/borrar', methods=['POST'])
 @perfil_requerido(['1', '2'])  # Solo perfiles 1 (directivo) y 2 (preseptor) pueden acceder
