@@ -578,21 +578,168 @@ def editar_ingresante(id_usuario):
 
 @app.route("/agregar_carrera", methods=["GET", "POST"])
 def agregar_carrera():
-    if request.method == "POST":
-        id_carrera = request.form["id_carrera"]
-        nombre = request.form["nombre"]
-        descripcion = request.form["descripcion"]
-        tipo = request.form["tipo"]
-        anio = request.form["anio"]
-        ley = request.form["ley"]
-        fecha = request.form["fecha"]
+    if 'nombre' not in session:  # si tu sistema tiene login
+        return redirect(url_for('login'))
 
-        # Aquí guardas en la BD
-        # ...
+    if request.method == "POST":
+        nombre = request.form.get("nombre")
+        descripcion = request.form.get("descripcion")
+        tipo = request.form.get("tipo")
+        anio = request.form.get("anio")
+        fecha = request.form.get("fecha") or date.today().strftime("%Y-%m-%d")
+        
+        # Manejo de archivo ley
+        # ley_file = request.files.get("ley")
+        # ley_filename = None
+        # if ley_file and allowed_file(ley_file.filename):
+        #     ley_filename = secure_filename(ley_file.filename)
+        #     ley_file.save(os.path.join(app.config["UPLOAD_FOLDER"], ley_filename))
+
+        # Insertar en la base de datos
+        query = """
+            INSERT INTO carreras (nombre, descripcion, tipo, anio, fecha, activo)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        values = (nombre, descripcion, tipo, anio, fecha, 1)  # activo = 1
+
+        ejecutar_sql(query, values)
 
         return redirect(url_for("carreras"))  # vuelve a la lista de carreras
 
     return render_template("agregar_carrera.html")
+# Listado de cursos
+@app.route("/cursos", methods=["GET"])
+# Listado de cursos
+@app.route("/cursos", methods=["GET"])
+def cursos():
+    if 'nombre' not in session:
+        return redirect(url_for('login'))
+
+    page = int(request.args.get("page", 1))
+    nombre_busqueda = request.args.get("nombre", "")
+    estado_activo = request.args.get("activo", "todos")
+
+    # Query base
+    query = """
+        SELECT id_curso, id_carrera, nombre, año_calendario, activo
+        FROM cursos
+        WHERE 1=1
+    """
+    params = []
+
+    # Filtro por nombre
+    if nombre_busqueda:
+        query += " AND nombre LIKE %s"
+        params.append(f"%{nombre_busqueda}%")
+
+    # Filtro por estado
+    if estado_activo == "activos":
+        query += " AND activo = 1"
+    elif estado_activo == "inactivos":
+        query += " AND activo = 0"
+
+    # Paginación
+    limite = 10
+    offset = (page - 1) * limite
+    query += " ORDER BY id_curso LIMIT %s OFFSET %s"
+    params.extend([limite, offset])
+
+    cursos = ejecutar_sql(query, tuple(params))
+
+    # 🔹 Aseguramos que siempre sea lista
+    cursos = cursos if cursos else []
+
+    # Total de registros (con mismos filtros)
+    query_total = "SELECT COUNT(*) FROM cursos WHERE 1=1"
+    params_total = []
+
+    if nombre_busqueda:
+        query_total += " AND nombre LIKE %s"
+        params_total.append(f"%{nombre_busqueda}%")
+    if estado_activo == "activos":
+        query_total += " AND activo = 1"
+    elif estado_activo == "inactivos":
+        query_total += " AND activo = 0"
+
+    total = ejecutar_sql(query_total, tuple(params_total))
+    total = total[0][0] if total else 0
+
+    total_paginas_cursos = (total // limite) + (1 if total % limite > 0 else 0)
+
+    return render_template(
+        "carreras.html",   # tu template con tabs
+        cursos=cursos,
+        total_paginas_cursos=total_paginas_cursos,
+        page=page,
+        nombre_busqueda=nombre_busqueda,
+        estado_activo=estado_activo,
+        table="cursos"
+    )
+
+# Agregar curso
+@app.route("/agregar_curso", methods=["GET", "POST"])
+def agregar_curso():
+    if 'nombre' not in session:
+        return redirect(url_for('login'))
+
+    if request.method == "POST":
+        datos = request.form.to_dict()
+
+        # Normalización (por si algún campo puede venir vacío)
+        datos['id_curso'] = int(datos['id_curso']) if datos['id_curso'].isdigit() else None
+        datos['id_carrera'] = int(datos['id_carrera']) if datos['id_carrera'].isdigit() else None
+        datos['nombre'] = datos.get('nombre') or None
+        datos['año_calendario'] = int(datos['año_calendario']) if datos['año_calendario'].isdigit() else None
+
+        query_insert_curso = """
+            INSERT INTO cursos (
+                id_curso, id_carrera, nombre, año_calendario, activo
+            ) VALUES (%s, %s, %s, %s, %s)
+        """
+        values_curso = (
+            datos['id_curso'], datos['id_carrera'], datos['nombre'], datos['año_calendario'], 1
+        )
+
+        ejecutar_sql(query_insert_curso, values_curso)
+
+        return redirect(url_for("cursos"))
+
+    return render_template("agregar_curso.html")
+
+
+# Editar curso
+@app.route("/editar_curso/<int:id_curso>", methods=["GET", "POST"])
+def editar_curso(id_curso):
+    if 'nombre' not in session:
+        return redirect(url_for('login'))
+
+    # Traer curso actual
+    query_select = "SELECT id_curso, id_carrera, nombre, año_calendario, activo FROM cursos WHERE id_curso = %s"
+    curso = ejecutar_sql(query_select, (id_curso,))[0]
+
+    if request.method == "POST":
+        datos = request.form.to_dict()
+
+        datos['id_carrera'] = int(datos['id_carrera']) if datos['id_carrera'].isdigit() else None
+        datos['nombre'] = datos.get('nombre') or None
+        datos['año_calendario'] = int(datos['año_calendario']) if datos['año_calendario'].isdigit() else None
+        datos['activo'] = 1 if datos.get("activo") == "on" else 0
+
+        query_update = """
+            UPDATE cursos
+            SET id_carrera = %s, nombre = %s, año_calendario = %s, activo = %s
+            WHERE id_curso = %s
+        """
+        values_update = (
+            datos['id_carrera'], datos['nombre'], datos['año_calendario'], datos['activo'], id_curso
+        )
+
+        ejecutar_sql(query_update, values_update)
+
+        return redirect(url_for("cursos"))
+
+    return render_template("editar_curso.html", curso=curso)
+
 
 @app.route('/ingresante/<int:id_usuario>/borrar', methods=['POST'])
 @perfil_requerido(['1', '2'])  # Solo perfiles 1 (directivo) y 2 (preseptor) pueden acceder

@@ -104,11 +104,16 @@
       <table class="table table-striped">
         <thead>
           <tr>
-            <th>ID</th>
+            <th>N°</th>
             <th>Nombre</th>
             <th>Descripción</th>
+            <th>Tipo</th>
+            <th>Año</th>
+            <th>Ley</th>
+            <th>Fecha</th>
             <th>Activo</th>
-            <th>Editar</th>
+            <!-- <th>Editar</th>
+            <th>Eliminar</th> -->
           </tr>
         </thead>
         <tbody>
@@ -149,7 +154,7 @@
         <div class="modal-content">
 
           <div class="modal-header">
-            <h5 class="modal-title text-primary" id="modalAgregarCarreraLabel">Agregar Nueva Carrera</h5>
+            <h5 class="modal-title text-primary" id="modalAgregarCarreraLabel">Nueva Carrera</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
               <span aria-hidden="true">&times;</span>
             </button>
@@ -158,17 +163,14 @@
           <form method="POST" action="{{ url_for('agregar_carrera') }}">
             <div class="modal-body">
               <div class="form-row">
-                <div class="col-md-4 form-group">
-                  <label for="id_carrera">ID Carrera</label>
-                  <input type="number" class="form-control form-control-sm" id="id_carrera" name="id_carrera" required>
-                </div>
-                <div class="col-md-8 form-group">
+                <div class="col-md-6 form-group">
                   <label for="nombre">Nombre</label>
                   <input type="text" class="form-control form-control-sm" id="nombre" name="nombre" required>
                 </div>
-                <div class="col-md-12 form-group">
+                <div class="col-md-6 form-group">
                   <label for="descripcion">Descripción</label>
-                  <textarea class="form-control form-control-sm" id="descripcion" name="descripcion" rows="2"></textarea>
+                  <input type="text" class="form-control form-control-sm" id="descripcion" name="descripcion">
+                  <!-- <textarea class="form-control form-control-sm" id="descripcion" name="descripcion" rows="2"></textarea> -->
                 </div>
                 <div class="col-md-4 form-group">
                   <label for="tipo">Tipo</label>
@@ -179,12 +181,12 @@
                   <input type="number" class="form-control form-control-sm" id="anio" name="anio">
                 </div>
                 <div class="col-md-4 form-group">
-                  <label for="ley">Ley</label>
-                  <input type="text" class="form-control form-control-sm" id="ley" name="ley">
-                </div>
-                <div class="col-md-6 form-group">
                   <label for="fecha">Fecha</label>
                   <input type="date" class="form-control form-control-sm" id="fecha" name="fecha">
+                </div>
+                <div class="col-md-12 form-group">
+                  <label for="ley">Ley</label>
+                  <input type="file" class="form-control form-control-sm" id="ley" name="ley">
                 </div>
               </div>
             </div>
@@ -197,6 +199,94 @@
         </div>
       </div>
     </div>
+
+    <!-- Contenido de la pestaña de Cursos -->
+    <div id="cursos" class="tab-content" style="display: none;">
+      <h5 class="text-primary mt-5">Listado de Cursos</h5>
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <!-- Formulario de búsqueda y filtros -->
+        <form method="GET" action="{{ url_for('cursos') }}" class="form-inline">
+          <input type="hidden" name="table" value="cursos">
+          <input type="text" name="nombre" class="form-control mr-2" placeholder="Buscar por nombre" value="{{ nombre_busqueda or '' }}">
+          
+          <!-- Filtro de estado -->
+          <label class="mr-2">Estado:</label>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="activo" value="todos" id="todos_cursos" {% if estado_activo == 'todos' %}checked{% endif %}>
+            <label class="form-check-label" for="todos_cursos">Todos</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="activo" value="activos" id="activos_cursos" {% if estado_activo == 'activos' %}checked{% endif %}>
+            <label class="form-check-label" for="activos_cursos">Activos</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="activo" value="inactivos" id="inactivos_cursos" {% if estado_activo == 'inactivos' %}checked{% endif %}>
+            <label class="form-check-label" for="inactivos_cursos">Inactivos</label>
+          </div>
+
+          <button type="submit" class="btn btn-primary ml-2">
+            <i class="fas fa-search"></i> Buscar
+          </button>
+        </form>
+
+        <!-- Botón de agregar -->
+        <a href="#" class="btn btn-success" data-toggle="modal" data-target="#modalAgregarCurso">
+          <i class="fas fa-plus"></i> Agregar
+        </a>
+      </div>
+
+      <!-- Tabla de cursos -->
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Año Calendario</th>
+            <th>Activo</th>
+            <!-- <th>Editar</th> -->
+          </tr>
+        </thead>
+        <tbody>
+          {% if cursos %}
+            {% for curso in cursos %}
+            <tr>
+              <td>{{ curso[0] }}</td>
+              <td>{{ curso[1] }}</td>
+              <td>{{ curso[2] }}</td>
+              <td>{{ curso[3] }}</td>
+              <td>{{ 'Sí' if curso[4] == 1 else 'No' }}</td>
+              <td>
+                <a href="{{ url_for('editar_curso', id_curso=curso[0]) }}">
+                  <i class="fas fa-edit fa-lg" id="EditIcon"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted">No hay cursos disponibles</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+
+      <!-- Paginación -->
+      {% if total_paginas_cursos %}
+      <div class="pagination" id="clase-paginas">
+        <ul class="pagination">
+          {% for p in range(1, total_paginas_cursos + 1) %}
+          <li class="page-item {% if p == page %}active{% endif %}" id="cuadrito">
+            <a class="page-link" href="{{ url_for('cursos', page=p, table='cursos', activo=estado_activo, nombre=nombre_busqueda) }}">{{ p }}</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+
+    
+
+
 
   <!-- Scripts -->
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
