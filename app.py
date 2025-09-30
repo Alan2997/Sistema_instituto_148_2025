@@ -651,6 +651,28 @@ def agregar_carrera():
 
     return render_template("carreras.html", carreras=carreras)
 
+@app.route("/editar_carrera", methods=["POST"])
+def editar_carrera():
+    id_carrera = request.form.get("id_carrera")
+    nombre = request.form.get("nombre")
+    descripcion = request.form.get("descripcion")
+    tipo = request.form.get("tipo")
+    anio = request.form.get("anio")
+    fecha = request.form.get("fecha")
+    activo = request.form.get("activo", 1)
+
+    query = """
+        UPDATE carreras
+        SET nombre=%s, descripcion=%s, tipo=%s, anio=%s, fecha=%s, activo=%s
+        WHERE id_carrera=%s
+    """
+    valores = [nombre, descripcion, tipo, anio, fecha, activo, id_carrera]
+    ejecutar_sql(query, valores)
+
+    return redirect(url_for("carreras"))
+
+
+
 # Listado de cursos
 @app.route("/cursos", methods=["GET"])
 def cursos():
