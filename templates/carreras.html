@@ -123,9 +123,7 @@
             <td>{{ campo or '' }}</td>
             {% endfor %}
             <td>
-              <a href="{{ url_for('editar_carrera', id_carrera=carrera[0]) }}">
-                <i class="fas fa-edit fa-lg" id="EditIcon"></i>
-              </a>
+              <a href="#"><i class="fas fa-edit fa-lg"></i></a>
             </td>
           </tr>
           {% endfor %}
@@ -160,7 +158,7 @@
             </button>
           </div>
 
-          <form method="POST" action="{{ url_for('agregar_carrera') }}">
+          <form method="POST" action="{{ url_for('agregar_carrera') }}" enctype="multipart/form-data">
             <div class="modal-body">
               <div class="form-row">
                 <div class="col-md-6 form-group">

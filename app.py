@@ -576,6 +576,45 @@ def editar_ingresante(id_usuario):
         alumno_turno=alumno_turno
     )
 
+@app.route("/carreras")
+def carreras():
+    # Traer filtros si vienen por GET
+    nombre_busqueda = request.args.get('nombre', '')
+    estado_activo = request.args.get('activo', 'activos')
+
+    # Query base
+    query = "SELECT id_carrera, nombre, descripcion, tipo, año, ley, fecha, activo FROM carreras WHERE 1=1"
+    valores = []
+
+    if nombre_busqueda:
+        query += " AND nombre LIKE %s"
+        valores.append(f"%{nombre_busqueda}%")
+
+    if estado_activo == "activos":
+        query += " AND activo = 1"
+    elif estado_activo == "inactivos":
+        query += " AND activo = 0"
+
+    query += " ORDER BY id_carrera DESC"
+
+    # Ejecutar query con filtros
+    carreras = ejecutar_sql(query, valores) or []
+
+    # Paginación (opcional)
+    total_paginas_carreras = 1
+    page = int(request.args.get('page', 1))
+
+    return render_template(
+        "carreras.html",
+        carreras=carreras,
+        nombre_busqueda=nombre_busqueda,
+        estado_activo=estado_activo,
+        total_paginas_carreras=total_paginas_carreras,
+        page=page
+    )
+
+
+
 @app.route("/agregar_carrera", methods=["GET", "POST"])
 def agregar_carrera():
     if 'nombre' not in session:  # si tu sistema tiene login
@@ -585,30 +624,33 @@ def agregar_carrera():
         nombre = request.form.get("nombre")
         descripcion = request.form.get("descripcion")
         tipo = request.form.get("tipo")
-        anio = request.form.get("anio")
+        año = request.form.get("anio")
         fecha = request.form.get("fecha") or date.today().strftime("%Y-%m-%d")
         
-        # Manejo de archivo ley
-        # ley_file = request.files.get("ley")
-        # ley_filename = None
-        # if ley_file and allowed_file(ley_file.filename):
-        #     ley_filename = secure_filename(ley_file.filename)
-        #     ley_file.save(os.path.join(app.config["UPLOAD_FOLDER"], ley_filename))
+        ley_file = request.files.get("ley")
+        ley_filename = None
+
+        print(
+            nombre,
+            descripcion,
+            tipo,
+            año,
+            fecha,
+            )
 
         # Insertar en la base de datos
         query = """
-            INSERT INTO carreras (nombre, descripcion, tipo, anio, fecha, activo)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO carreras (nombre, descripcion, tipo, año, ley, fecha, activo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
-        values = (nombre, descripcion, tipo, anio, fecha, 1)  # activo = 1
-
+        values = (nombre, descripcion, tipo, año, ley_filename, fecha, 1)
         ejecutar_sql(query, values)
+        # GET → traemos todas las carreras
+        query = "SELECT * FROM carreras ORDER BY id_carrera DESC"
+        carreras = ejecutar_sql(query)  # fetch=True para obtener resultados
 
-        return redirect(url_for("carreras"))  # vuelve a la lista de carreras
+    return render_template("carreras.html", carreras=carreras)
 
-    return render_template("agregar_carrera.html")
-# Listado de cursos
-@app.route("/cursos", methods=["GET"])
 # Listado de cursos
 @app.route("/cursos", methods=["GET"])
 def cursos():
@@ -762,13 +804,13 @@ def profesores():
     # Renderiza la página de gestión de profesores
     return render_template('profesores.html')
 
-@app.route('/carreras')
-@perfil_requerido(['1', '2'])  # Solo perfiles 1 (directivo) y 2 (preseptor) pueden acceder
-def carreras():
-    if 'nombre' not in session:
-        return redirect(url_for('login'))
-    # Renderiza la página de gestión de carreras
-    return render_template('carreras.html')
+# @app.route('/carreras')
+# @perfil_requerido(['1', '2'])  # Solo perfiles 1 (directivo) y 2 (preseptor) pueden acceder
+# def carreras():
+#     if 'nombre' not in session:
+#         return redirect(url_for('login'))
+#     # Renderiza la página de gestión de carreras
+#     return render_template('carreras.html')
 
 @app.route('/horarios')
 @perfil_requerido(['1','2', '3', '4'])  # todos los perfiles pueden acceder
