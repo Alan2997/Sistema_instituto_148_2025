@@ -624,7 +624,7 @@ def agregar_carrera():
         nombre = request.form.get("nombre")
         descripcion = request.form.get("descripcion")
         tipo = request.form.get("tipo")
-        año = request.form.get("anio")
+        año = request.form.get("año")
         fecha = request.form.get("fecha") or date.today().strftime("%Y-%m-%d")
         
         ley_file = request.files.get("ley")
@@ -657,22 +657,30 @@ def editar_carrera():
     nombre = request.form.get("nombre")
     descripcion = request.form.get("descripcion")
     tipo = request.form.get("tipo")
-    anio = request.form.get("anio")
+    año = request.form.get("año")
     fecha = request.form.get("fecha")
     activo = request.form.get("activo", 1)
 
     query = """
         UPDATE carreras
-        SET nombre=%s, descripcion=%s, tipo=%s, anio=%s, fecha=%s, activo=%s
+        SET nombre=%s, descripcion=%s, tipo=%s, año=%s, fecha=%s, activo=%s
         WHERE id_carrera=%s
     """
-    valores = [nombre, descripcion, tipo, anio, fecha, activo, id_carrera]
-    ejecutar_sql(query, valores)
+    values = [nombre, descripcion, tipo, año, fecha, activo, id_carrera]
+    print("Editando carrera:", id_carrera, nombre, descripcion, tipo, año, fecha, activo)
+    ejecutar_sql(query, values)
 
     return redirect(url_for("carreras"))
 
-
-
+@app.route("/eliminar_carrera", methods=["POST"])
+def eliminar_carrera():
+    print("request", request.form)
+    id_carrera = request.form.get("id_carrera")
+    query = "DELETE FROM carreras WHERE id_carrera=%s"
+    values = [id_carrera]
+    print("Eliminando carrera:", id_carrera)
+    ejecutar_sql(query, values)
+    return redirect(url_for("carreras"))
 # Listado de cursos
 @app.route("/cursos", methods=["GET"])
 def cursos():
@@ -683,56 +691,65 @@ def cursos():
     nombre_busqueda = request.args.get("nombre", "")
     estado_activo = request.args.get("activo", "todos")
 
-    # Query base
+    # Traer cursos con JOIN a carreras
     query = """
-        SELECT id_curso, id_carrera, nombre, año_calendario, activo
-        FROM cursos
+        SELECT 
+            c.id_curso,
+            c.nombre AS nombre_curso,
+            c.año_calendario,
+            c.activo,
+            ca.nombre AS nombre_carrera,
+            c.id_carrera
+        FROM cursos c
+        JOIN carreras ca ON c.id_carrera = ca.id_carrera
         WHERE 1=1
     """
     params = []
 
-    # Filtro por nombre
     if nombre_busqueda:
-        query += " AND nombre LIKE %s"
+        query += " AND c.nombre LIKE %s"
         params.append(f"%{nombre_busqueda}%")
 
-    # Filtro por estado
     if estado_activo == "activos":
-        query += " AND activo = 1"
+        query += " AND c.activo = 1"
     elif estado_activo == "inactivos":
-        query += " AND activo = 0"
+        query += " AND c.activo = 0"
 
-    # Paginación
     limite = 10
     offset = (page - 1) * limite
-    query += " ORDER BY id_curso LIMIT %s OFFSET %s"
+    query += " ORDER BY c.id_curso DESC LIMIT %s OFFSET %s"
     params.extend([limite, offset])
 
-    cursos = ejecutar_sql(query, tuple(params))
+    cursos = ejecutar_sql(query, tuple(params)) or []
 
-    # 🔹 Aseguramos que siempre sea lista
-    cursos = cursos if cursos else []
-
-    # Total de registros (con mismos filtros)
-    query_total = "SELECT COUNT(*) FROM cursos WHERE 1=1"
+    # Total de registros
+    query_total = """
+        SELECT COUNT(*)
+        FROM cursos c
+        JOIN carreras ca ON c.id_carrera = ca.id_carrera
+        WHERE 1=1
+    """
     params_total = []
-
     if nombre_busqueda:
-        query_total += " AND nombre LIKE %s"
+        query_total += " AND c.nombre LIKE %s"
         params_total.append(f"%{nombre_busqueda}%")
     if estado_activo == "activos":
-        query_total += " AND activo = 1"
+        query_total += " AND c.activo = 1"
     elif estado_activo == "inactivos":
-        query_total += " AND activo = 0"
+        query_total += " AND c.activo = 0"
 
     total = ejecutar_sql(query_total, tuple(params_total))
     total = total[0][0] if total else 0
-
     total_paginas_cursos = (total // limite) + (1 if total % limite > 0 else 0)
 
+    # Traer todas las carreras para el modal
+    query_carreras = "SELECT id_carrera, nombre FROM carreras"
+    carreras = ejecutar_sql(query_carreras) or []
+
     return render_template(
-        "carreras.html",   # tu template con tabs
+        "carreras.html",
         cursos=cursos,
+        carreras=carreras,
         total_paginas_cursos=total_paginas_cursos,
         page=page,
         nombre_busqueda=nombre_busqueda,
@@ -740,35 +757,32 @@ def cursos():
         table="cursos"
     )
 
-# Agregar curso
-@app.route("/agregar_curso", methods=["GET", "POST"])
+
+
+@app.route("/agregar_curso", methods=["POST"])
 def agregar_curso():
     if 'nombre' not in session:
         return redirect(url_for('login'))
 
     if request.method == "POST":
-        datos = request.form.to_dict()
+        id_carrera = request.form.get("id_carrera")
+        nombre = request.form.get("nombre")
+        año = request.form.get("año")
+        activo = request.form.get("activo", 1)
 
-        # Normalización (por si algún campo puede venir vacío)
-        datos['id_curso'] = int(datos['id_curso']) if datos['id_curso'].isdigit() else None
-        datos['id_carrera'] = int(datos['id_carrera']) if datos['id_carrera'].isdigit() else None
-        datos['nombre'] = datos.get('nombre') or None
-        datos['año_calendario'] = int(datos['año_calendario']) if datos['año_calendario'].isdigit() else None
-
-        query_insert_curso = """
-            INSERT INTO cursos (
-                id_curso, id_carrera, nombre, año_calendario, activo
-            ) VALUES (%s, %s, %s, %s, %s)
+        query = """
+            INSERT INTO cursos (id_carrera, nombre, año_calendario, activo)
+            VALUES (%s, %s, %s, %s)
         """
-        values_curso = (
-            datos['id_curso'], datos['id_carrera'], datos['nombre'], datos['año_calendario'], 1
-        )
+        values = (id_carrera, nombre, año, activo)
+        print("Agregando curso:", id_carrera, nombre, año, activo)
 
-        ejecutar_sql(query_insert_curso, values_curso)
+        ejecutar_sql(query, values)
 
-        return redirect(url_for("cursos"))
+        return redirect(url_for("cursos", table="cursos"))
 
-    return render_template("agregar_curso.html")
+    return redirect(url_for("cursos", table="cursos"))
+
 
 
 # Editar curso

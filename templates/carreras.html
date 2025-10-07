@@ -112,8 +112,8 @@
             <th>Ley</th>
             <th>Fecha</th>
             <th>Activo</th>
-            <!-- <th>Editar</th>
-            <th>Eliminar</th> -->
+            <th>Editar</th>
+            <th>Eliminar</th>
           </tr>
         </thead>
         <tbody>
@@ -131,10 +131,21 @@
                 data-nombre="{{ carrera[1] }}"
                 data-descripcion="{{ carrera[2] }}"
                 data-tipo="{{ carrera[3] }}"
-                data-anio="{{ carrera[4] }}"
+                data-año="{{ carrera[4] }}"
                 data-fecha="{{ carrera[6] }}"
-                data-activo="{{ carrera[7] }}">
+                data-activo="{{ carrera[7] }}"
+                >
                 <i class="fas fa-edit fa-lg"></i>
+              </a>
+            </td>
+            <td>
+              <a href="#"
+                class="btn btn-sm btn-primary-outline"
+                data-toggle="modal"
+                data-target="#modalEliminarCarrera"
+                data-id="{{ carrera[0] }}"
+                >
+                <i class="fas fa-trash-alt fa-lg"></i>
               </a>
             </td>
           </tr>
@@ -188,7 +199,7 @@
                 </div>
                 <div class="col-md-4 form-group">
                   <label for="anio">Año</label>
-                  <input type="number" class="form-control form-control-sm" id="anio" name="anio">
+                  <input type="number" class="form-control form-control-sm" id="año" name="año">
                 </div>
                 <div class="col-md-4 form-group">
                   <label for="fecha">Fecha</label>
@@ -222,7 +233,7 @@
             </button>
           </div>
 
-          <form method="POST" action="{{ url_for('editar_carrera') }}" enctype="multipart/form-data">
+          <form method="POST" action="{{ url_for('editar_carrera') }}">
             <div class="modal-body">
               <input type="hidden" name="id_carrera" id="editar-id_carrera">
               
@@ -241,15 +252,11 @@
                 </div>
                 <div class="col-md-4 form-group">
                   <label for="editar-anio">Año</label>
-                  <input type="number" class="form-control form-control-sm" id="editar-anio" name="anio">
+                  <input type="number" class="form-control form-control-sm" id="editar-año" name="año">
                 </div>
                 <div class="col-md-4 form-group">
                   <label for="editar-fecha">Fecha</label>
                   <input type="date" class="form-control form-control-sm" id="editar-fecha" name="fecha">
-                </div>
-                <div class="col-md-12 form-group">
-                  <label for="editar-ley">Ley</label>
-                  <input type="file" class="form-control form-control-sm" id="editar-ley" name="ley">
                 </div>
                 <div class="col-md-12 form-group">
                   <label>Activo</label>
@@ -270,6 +277,29 @@
       </div>
     </div>
 
+    <!-- Modal Eliminar Carrera -->
+    <div class="modal fade" id="modalEliminarCarrera" tabindex="-1" role="dialog" aria-labelledby="modalEliminarCarreraLabel" aria-hidden="true">
+      <form method="POST" action="{{ url_for('eliminar_carrera') }}">
+        <input type="hidden" name="id_carrera" id="eliminar-id_carrera">
+        <div class="modal-dialog modal-sm" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title text-danger" id="modalEliminarCarreraLabel">Eliminar Carrera</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              ¿Estás seguro de que deseas eliminar la carrera <span id="eliminar-nombre-carrera"></span>?
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-danger" id="boton-eliminar">Eliminar</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
 
     <!-- Contenido de la pestaña de Cursos -->
     <div id="cursos" class="tab-content" style="display: none;">
@@ -313,19 +343,19 @@
           <tr>
             <th>Nombre</th>
             <th>Año Calendario</th>
+            <th>Carrera</th>
             <th>Activo</th>
-            <!-- <th>Editar</th> -->
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
           {% if cursos %}
             {% for curso in cursos %}
             <tr>
-              <td>{{ curso[0] }}</td>
-              <td>{{ curso[1] }}</td>
-              <td>{{ curso[2] }}</td>
-              <td>{{ curso[3] }}</td>
-              <td>{{ 'Sí' if curso[4] == 1 else 'No' }}</td>
+              <td>{{ curso[1] }}</td> <!-- nombre_curso -->
+              <td>{{ curso[2] }}</td> <!-- año_calendario -->
+              <td>{{ curso[4] }}</td> <!-- nombre_carrera -->
+              <td>{{ 'Sí' if curso[3] == 1 else 'No' }}</td> <!-- activo -->
               <td>
                 <a href="{{ url_for('editar_curso', id_curso=curso[0]) }}">
                   <i class="fas fa-edit fa-lg" id="EditIcon"></i>
@@ -335,7 +365,7 @@
             {% endfor %}
           {% else %}
             <tr>
-              <td colspan="6" class="text-center text-muted">No hay cursos disponibles</td>
+              <td colspan="5" class="text-center text-muted">No hay cursos disponibles</td>
             </tr>
           {% endif %}
         </tbody>
@@ -355,26 +385,96 @@
       {% endif %}
     </div>
 
-    
+    <!-- Modal para agregar curso -->
+    <div id="modalAgregarCurso" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="modalAgregarCursoLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalAgregarCursoLabel">Agregar Curso</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <!-- Formulario para agregar curso -->
+            <form id="formAgregarCurso" method="POST" action="{{ url_for('agregar_curso') }}">
+              <div class="form-group">
+                <label for="id_carrera">Carrera</label>
+                <select class="form-control" id="id_carrera" name="id_carrera" required>
+                  <option value="">Seleccionar carrera</option>
+                  {% for carrera in carreras %}
+                    <option value="{{ carrera[0] }}">{{ carrera[1] }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="nombre">Nombre del Curso</label>
+                <input type="text" class="form-control" id="nombre" name="nombre" required>
+              </div>
+              <div class="form-group">
+                <label for="año">Año Calendario</label>
+                <input type="number" class="form-control" id="año" name="año" required>
+              </div>
+              <div class="form-group">
+                <label for="activo">Activo</label>
+                <select class="form-control" id="activo" name="activo" required>
+                  <option value="1">Sí</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" form="formAgregarCurso" class="btn btn-primary">Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-
+    </div>
 
   <!-- Scripts -->
    <script>
     $('#modalEditarCarrera').on('show.bs.modal', function (event) {
-      var button = $(event.relatedTarget); // Botón que abrió el modal
-      var modal = $(this);
+      var button = $(event.relatedTarget); // botón que abrió el modal
 
-      // Llenar campos
-      modal.find('#editar-id_carrera').val(button.data('id'));
-      modal.find('#editar-nombre').val(button.data('nombre'));
-      modal.find('#editar-descripcion').val(button.data('descripcion'));
-      modal.find('#editar-tipo').val(button.data('tipo'));
-      modal.find('#editar-anio').val(button.data('anio'));
-      modal.find('#editar-fecha').val(button.data('fecha'));
-      modal.find('#editar-activo').val(button.data('activo'));
+      // Obtener datos del botón
+      var id = button.data('id');
+      var nombre = button.data('nombre');
+      var descripcion = button.data('descripcion');
+      var tipo = button.data('tipo');
+      var año = button.data('año');
+      var fecha = button.data('fecha');
+      var activo = button.data('activo');
+
+      // Pasar datos al modal
+      var modal = $(this);
+      modal.find('#editar-id_carrera').val(id);
+      modal.find('#editar-nombre').val(nombre);
+      modal.find('#editar-descripcion').val(descripcion);
+      modal.find('#editar-tipo').val(tipo);
+      modal.find('#editar-año').val(año);
+      modal.find('#editar-fecha').val(fecha);
+      modal.find('#editar-activo').val(activo);
     });
   </script>
+   <script>
+    $('#modalEliminarCarrera').on('show.bs.modal', function (event) {
+      var button = $(event.relatedTarget); // botón que abrió el modal
+
+      // Obtener datos del botón
+      var id = button.data('id');
+      var nombre = button.data('nombre');
+
+      // Pasar datos al modal
+      var modal = $(this);
+      modal.find('#eliminar-id_carrera').val(id);
+      modal.find('#eliminar-nombre-carrera').text(nombre);
+    });
+  </script>
+
+
 
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.6/dist/umd/popper.min.js"></script>
