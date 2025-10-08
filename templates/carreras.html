@@ -43,10 +43,12 @@
       align-items: center;
     }
     html, body {
-      height: 100%;
       display: flex;
       justify-content: center;
       align-items: center;
+    }
+    body {
+      width: 100%;
     }
     #boton-guardar {
       background-color: #518ec3;
@@ -55,119 +57,116 @@
   </style>
 </head>
 <body>
-  {% include 'navbar.html' %}
-  <div class="container">
-    {% include 'nav_carreras.html' %}
-  </div>
-
-  <div class="container align-content-center align-items-center">
-
-    <!-- Contenido de la pestaña de Carreras -->
-    <div id="carreras" class="tab-content" style="display: none;">
-      <h5 class="text-primary mt-5">Listado de Carreras</h5>
-
-      <div class="d-flex justify-content-between align-items-center mb-3">
-  
-      <!-- Formulario de búsqueda y filtros -->
-      <form method="GET" action="{{ url_for('carreras') }}" class="form-inline">
-        <input type="hidden" name="table" value="carreras">
-        <input type="text" name="nombre" class="form-control mr-2" placeholder="Buscar por nombre" value="{{ nombre_busqueda or '' }}">
-        
-        <!-- Filtro de estado -->
-        <label class="mr-2">Estado:</label>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="activo" value="todos" id="todos" {% if estado_activo == 'todos' %}checked{% endif %}>
-            <label class="form-check-label" for="todos">Todos</label>
-          </div>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="activo" value="activos" id="activos" {% if estado_activo == 'activos' %}checked{% endif %}>
-            <label class="form-check-label" for="activos">Activos</label>
-          </div>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="activo" value="inactivos" id="inactivos" {% if estado_activo == 'inactivos' %}checked{% endif %}>
-            <label class="form-check-label" for="inactivos">Inactivos</label>
-          </div>
-
-          <button type="submit" class="btn btn-primary ml-2">
-            <i class="fas fa-search"></i> Buscar
-          </button>
-        </form>
-
-        <!-- Botón de agregar a la derecha -->
-        <a href="{{ url_for('agregar_carrera') }}" class="btn btn-success" data-toggle="modal" data-target="#modalAgregarCarrera">
-          <i class="fas fa-plus"></i> Agregar
-        </a>
-      </div>
-
-
-      <!-- Tabla de carreras -->
-      <table class="table table-striped">
-        <thead>
-          <tr>
-            <th>N°</th>
-            <th>Nombre</th>
-            <th>Descripción</th>
-            <th>Tipo</th>
-            <th>Año</th>
-            <th>Ley</th>
-            <th>Fecha</th>
-            <th>Activo</th>
-            <th>Editar</th>
-            <th>Eliminar</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for carrera in carreras %}
-          <tr>
-            {% for campo in carrera %}
-            <td>{{ campo or '' }}</td>
-            {% endfor %}
-            <td>
-              <a href="#"
-                class="btn btn-sm btn-primary"
-                data-toggle="modal"
-                data-target="#modalEditarCarrera"
-                data-id="{{ carrera[0] }}"
-                data-nombre="{{ carrera[1] }}"
-                data-descripcion="{{ carrera[2] }}"
-                data-tipo="{{ carrera[3] }}"
-                data-año="{{ carrera[4] }}"
-                data-fecha="{{ carrera[6] }}"
-                data-activo="{{ carrera[7] }}"
-                >
-                <i class="fas fa-edit fa-lg"></i>
-              </a>
-            </td>
-            <td>
-              <a href="#"
-                class="btn btn-sm btn-primary-outline"
-                data-toggle="modal"
-                data-target="#modalEliminarCarrera"
-                data-id="{{ carrera[0] }}"
-                >
-                <i class="fas fa-trash-alt fa-lg"></i>
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-
-      <!-- Paginación de Carreras -->
-      {% if total_paginas_carreras %}
-      <div class="pagination" id="clase-paginas">
-        <ul class="pagination">
-          {% for p in range(1, total_paginas_carreras + 1) %}
-          <li class="page-item {% if p == page %}active{% endif %}" id="cuadrito">
-            <a class="page-link" href="{{ url_for('carreras', page=p, table='carreras', activo=estado_activo, nombre=nombre_busqueda) }}">{{ p }}</a>
-          </li>
-          {% endfor %}
-        </ul>
-      </div>
-      {% endif %}
+    {% include 'navbar.html' %}
+    <div class="container">
+      {% include 'nav_carreras.html' %}
     </div>
 
-  </div>
+    <div class="container align-content-center align-items-center">
+      <!-- Contenido de la pestaña de Carreras -->
+      <div id="carreras" class="tab-content" style="display: none;">
+        <h5 class="text-primary mt-5">Listado de Carreras</h5>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+    
+        <!-- Formulario de búsqueda y filtros -->
+        <form method="GET" action="{{ url_for('carreras') }}" class="form-inline">
+          <input type="hidden" name="table" value="carreras">
+          <input type="text" name="nombre" class="form-control mr-2" placeholder="Buscar por nombre" value="{{ nombre_busqueda or '' }}">
+          
+          <!-- Filtro de estado -->
+          <label class="mr-2">Estado:</label>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="activo" value="todos" id="todos" {% if estado_activo == 'todos' %}checked{% endif %}>
+              <label class="form-check-label" for="todos">Todos</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="activo" value="activos" id="activos" {% if estado_activo == 'activos' %}checked{% endif %}>
+              <label class="form-check-label" for="activos">Activos</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="activo" value="inactivos" id="inactivos" {% if estado_activo == 'inactivos' %}checked{% endif %}>
+              <label class="form-check-label" for="inactivos">Inactivos</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary ml-2">
+              <i class="fas fa-search"></i> Buscar
+            </button>
+          </form>
+
+          <!-- Botón de agregar a la derecha -->
+          <a href="{{ url_for('agregar_carrera') }}" class="btn btn-success" data-toggle="modal" data-target="#modalAgregarCarrera">
+            <i class="fas fa-plus"></i> Agregar
+          </a>
+        </div>
+
+
+        <!-- Tabla de carreras -->
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>N°</th>
+              <th>Nombre</th>
+              <th>Descripción</th>
+              <th>Tipo</th>
+              <th>Año</th>
+              <th>Ley</th>
+              <th>Fecha</th>
+              <th>Activo</th>
+              <th>Editar</th>
+              <th>Eliminar</th>
+            </tr>
+          </thead>
+          <tbody>
+              {% for carrera in carreras %}
+              <tr>
+                {% for campo in carrera %}
+                <td>{{ campo or '' }}</td>
+                {% endfor %}
+                <td>
+                  <a href="#"
+                    data-toggle="modal"
+                    data-target="#modalEditarCarrera"
+                    data-id="{{ carrera[0] }}"
+                    data-nombre="{{ carrera[1] }}"
+                    data-descripcion="{{ carrera[2] }}"
+                    data-tipo="{{ carrera[3] }}"
+                    data-año="{{ carrera[4] }}"
+                    data-fecha="{{ carrera[6] }}"
+                    data-activo="{{ carrera[7] }}"
+                    >
+                    <i class="fas fa-edit fa-lg" id="EditIcon"></i>
+                  </a>
+                </td>
+                <td>
+                  <a href="#"
+                    data-toggle="modal"
+                    data-target="#modalEliminarCarrera"
+                    data-id="{{ carrera[0] }}"
+                    >
+                    <i class="fas fa-trash-alt fa-lg" id="DeleteIcon"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            
+          </tbody>
+        </table>
+
+        <!-- Paginación de Carreras -->
+        {% if total_paginas_carreras %}
+        <div class="pagination" id="clase-paginas">
+          <ul class="pagination">
+            {% for p in range(1, total_paginas_carreras + 1) %}
+            <li class="page-item {% if p == page %}active{% endif %}" id="cuadrito">
+              <a class="page-link" href="{{ url_for('carreras', page=p, table='carreras', activo=estado_activo, nombre=nombre_busqueda) }}">{{ p }}</a>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+    </div>
 
     <!-- Modal Nueva Carrera -->
     <div class="modal fade" id="modalAgregarCarrera" tabindex="-1" role="dialog" aria-labelledby="modalAgregarCarreraLabel" aria-hidden="true">
@@ -251,7 +250,7 @@
                   <input type="text" class="form-control form-control-sm" id="editar-tipo" name="tipo">
                 </div>
                 <div class="col-md-4 form-group">
-                  <label for="editar-anio">Año</label>
+                  <label for="editar-año">Año</label>
                   <input type="number" class="form-control form-control-sm" id="editar-año" name="año">
                 </div>
                 <div class="col-md-4 form-group">
@@ -302,10 +301,10 @@
     </div>
 
     <!-- Contenido de la pestaña de Cursos -->
-    <div id="cursos" class="tab-content" style="display: none;">
+    <div id="cursos" class="tab-content container align-content-center align-items-center">
       <h5 class="text-primary mt-5">Listado de Cursos</h5>
 
-      <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-3 gap-30">
         <!-- Formulario de búsqueda y filtros -->
         <form method="GET" action="{{ url_for('cursos') }}" class="form-inline">
           <input type="hidden" name="table" value="cursos">
@@ -342,8 +341,8 @@
         <thead>
           <tr>
             <th>Nombre</th>
-            <th>Año Calendario</th>
             <th>Carrera</th>
+            <th>Año Calendario</th>
             <th>Activo</th>
             <th>Acciones</th>
           </tr>
@@ -351,16 +350,37 @@
         <tbody>
           {% if cursos %}
             {% for curso in cursos %}
-            <tr>
+            <tr>   <!-- c0(id_c) c1(nombre) c2(año_calendario) c3(activo) c4(carrera) -->
               <td>{{ curso[1] }}</td> <!-- nombre_curso -->
-              <td>{{ curso[2] }}</td> <!-- año_calendario -->
               <td>{{ curso[4] }}</td> <!-- nombre_carrera -->
+              <td>{{ curso[2] }}</td> <!-- año_calendario -->
               <td>{{ 'Sí' if curso[3] == 1 else 'No' }}</td> <!-- activo -->
               <td>
-                <a href="{{ url_for('editar_curso', id_curso=curso[0]) }}">
+                <a href="#"
+                    data-toggle="modal"
+                    data-target="#modalEditarCurso"
+                    data-id_curso="{{ curso[0] }}"                   
+                    data-nombre="{{ curso[1] }}"
+                    data-nombre_carrera="{{ curso[4] }}"
+                    data-año_calendario="{{ curso[2] }}"
+                    data-activo="{{ curso[3] }}"
+                    >
                   <i class="fas fa-edit fa-lg" id="EditIcon"></i>
                 </a>
               </td>
+              <!-- <td>
+                  <a href="#"
+                    data-toggle="modal"
+                    data-target="#modalEditarCurso"
+                    data-nombre="{{ curso[1] }}"
+                    data-año="{{ curso[2] }}"
+                    data-id="{{ curso[0] }}"
+                    data-carrera="{{ curso[4] }}"
+                    data-activo="{{ curso[3] }}"
+                    >
+                    <i class="fas fa-trash-alt fa-lg" id="DeleteIcon"></i>
+                  </a>
+              </td> -->
             </tr>
             {% endfor %}
           {% else %}
@@ -402,7 +422,7 @@
                 <label for="id_carrera">Carrera</label>
                 <select class="form-control" id="id_carrera" name="id_carrera" required>
                   <option value="">Seleccionar carrera</option>
-                  {% for carrera in carreras %}
+                  {% for carrera in carreras_select or carreras %}
                     <option value="{{ carrera[0] }}">{{ carrera[1] }}</option>
                   {% endfor %}
                 </select>
@@ -432,7 +452,54 @@
       </div>
     </div>
 
+    <!-- Modal para editar curso -->
+    <div id="modalEditarCurso" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="modalEditarCursoLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalEditarCursoLabel">Editar Curso</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <!-- Formulario para editar curso -->
+            <form id="formEditarCurso" method="POST" action="{{ url_for('editar_curso') }}">
+              <input type="hidden" id="editar-id_curso" name="id_curso">
+              <div class="form-group">
+                <label for="id_carrera">Carrera</label>
+                <select class="form-control" id="editar-id_carrera" name="id_carrera" required>
+                  <option value="">Seleccionar carrera</option>
+                  {% for carrera in carreras_select or carreras %}
+                    <option value="{{ carrera[4] }}">{{ carrera[1] }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="nombre">Nombre del Curso</label>
+                <input type="text" class="form-control" id="editar-nombre" name="nombre" required>
+              </div>
+              <div class="form-group">
+                <label for="año">Año Calendario</label>
+                <input type="number" class="form-control" id="editar-año" name="año_calendario" required>
+              </div>
+              <div class="form-group">
+                <label for="activo">Activo</label>
+                <select class="form-control" id="activo" name="editar-activo" required>
+                  <option value="1">Sí</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" form="formEditarCurso" class="btn btn-primary">Guardar cambios</button>
+          </div>
+        </div>
+      </div>
     </div>
+
 
   <!-- Scripts -->
    <script>

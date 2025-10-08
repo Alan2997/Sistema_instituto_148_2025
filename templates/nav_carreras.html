@@ -1,27 +1,25 @@
 <script>
   function showTab(tabId) {
-      // Oculta todas las pestañas
-      const tabs = document.querySelectorAll('.tab-content');
-      tabs.forEach(tab => tab.style.display = 'none');
+    // Oculta todas las pestañas
+    document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
 
-      // Muestra la pestaña seleccionada
-      const activeTab = document.getElementById(tabId);
-      if (activeTab) activeTab.style.display = 'block';
+    // Muestra la seleccionada
+    const activeTab = document.getElementById(tabId);
+    if (activeTab) activeTab.style.display = 'block';
 
-      // Actualiza clase "active" en nav
-      const navLinks = document.querySelectorAll('#menu .nav-link');
-      navLinks.forEach(link => link.classList.remove('active'));
-      document.getElementById(tabId + '-btn').classList.add('active');
+    // Actualiza el nav activo
+    document.querySelectorAll('#menu .nav-link').forEach(link => link.classList.remove('active'));
+    const activeLink = document.getElementById(tabId + '-btn');
+    if (activeLink) activeLink.classList.add('active');
   }
 
-  // Evento al cargar la página
-  document.addEventListener('DOMContentLoaded', function() {
-      // Si estás en la URL de cursos, abre la pestaña automáticamente
-      if (window.location.href.includes('/cursos')) {
-          showTab('cursos');
-      }
+  document.addEventListener('DOMContentLoaded', function () {
+    // Detectar qué pestaña mostrar según el backend
+    const defaultTab = "{{ table or 'carreras' }}";
+    showTab(defaultTab);
   });
 </script>
+
 
 <nav role="navigation" id="menu">
   <ul class="nav nav-pills" id="pills-tab">
