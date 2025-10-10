@@ -731,24 +731,22 @@ def agregar_curso():
     if 'nombre' not in session:
         return redirect(url_for('login'))
 
-    if request.method == "POST":
-        id_carrera = request.form.get("id_carrera")
-        nombre = request.form.get("nombre")
-        año = request.form.get("año")
-        activo = request.form.get("activo", 1)
+    id_carrera = request.form.get("id_carrera")
+    nombre = request.form.get("nombre")
+    año = request.form.get("año")
+    activo = request.form.get("activo", 1)
 
-        query = """
-            INSERT INTO cursos (id_carrera, nombre, año_calendario, activo)
-            VALUES (%s, %s, %s, %s)
-        """
-        values = (id_carrera, nombre, año, activo)
-        print("Agregando curso:", id_carrera, nombre, año, activo)
+    query = """
+        INSERT INTO cursos (id_carrera, nombre, año_calendario, activo)
+        VALUES (%s, %s, %s, %s)
+    """
+    values = (id_carrera, nombre, año, activo)
+    ejecutar_sql(query, values)
 
-        ejecutar_sql(query, values)
+    # 🔁 Redirige a la vista de cursos con table='cursos'
+    return redirect(url_for("carreras", table="cursos"))
 
-        return redirect(url_for("cursos", table="cursos"))
 
-    return redirect(url_for("cursos", table="cursos"))
 
 # Editar curso
 @app.route("/editar_curso", methods=["GET", "POST"])
@@ -770,8 +768,17 @@ def editar_curso():
     print("Editando curso:", id_carrera, nombre, año_calendario, activo)
     ejecutar_sql(query, values)
 
-    return redirect(url_for("cursos"))
+    return redirect(url_for("carreras", table="cursos"))
 
+@app.route("/eliminar_curso", methods=["POST"])
+def eliminar_curso():
+    print("request curso", request.form)
+    id_curso = request.form.get("id_curso")
+    query = "DELETE FROM cursos WHERE id_curso=%s"
+    values = [id_curso]
+    print("Eliminando curso:", id_curso)
+    ejecutar_sql(query, values)
+    return redirect(url_for("carreras", table="cursos"))
 
 @app.route('/ingresante/<int:id_usuario>/borrar', methods=['POST'])
 @perfil_requerido(['1', '2'])  # Solo perfiles 1 (directivo) y 2 (preseptor) pueden acceder

@@ -118,11 +118,17 @@
             </tr>
           </thead>
           <tbody>
+            {% if carreras %}
               {% for carrera in carreras %}
               <tr>
-                {% for campo in carrera %}
-                <td>{{ campo or '' }}</td>
-                {% endfor %}
+                <td>{{ carrera[0] }}</td> <!-- id_carrera -->
+                <td>{{ carrera[1] }}</td> <!-- nombre_carrera -->
+                <td>{{ carrera[2] }}</td> <!-- descripcion -->
+                <td>{{ carrera[3] }}</td> <!-- tipo -->
+                <td>{{ carrera[4] }}</td> <!-- año -->
+                <td>{{ 'S/D' if carrera[5] == None else carrera[5] }}</td> <!-- ley -->
+                <td>{{ carrera[6] }}</td> <!-- fecha -->
+                <td>{{ 'Sí' if carrera[7] == 1 else 'No' }}</td> <!-- activo -->
                 <td>
                   <a href="#"
                     data-toggle="modal"
@@ -149,6 +155,11 @@
                 </td>
               </tr>
               {% endfor %}
+            {% else %}
+            <tr>
+              <td colspan="10" class="text-center text-muted">No hay carreras disponibles</td>
+            </tr>
+            {% endif %}
             
           </tbody>
         </table>
@@ -368,19 +379,15 @@
                   <i class="fas fa-edit fa-lg" id="EditIcon"></i>
                 </a>
               </td>
-              <!-- <td>
+              <td>
                   <a href="#"
                     data-toggle="modal"
-                    data-target="#modalEditarCurso"
-                    data-nombre="{{ curso[1] }}"
-                    data-año="{{ curso[2] }}"
-                    data-id="{{ curso[0] }}"
-                    data-carrera="{{ curso[4] }}"
-                    data-activo="{{ curso[3] }}"
+                    data-target="#modalEliminarCurso"
+                    data-id_curso="{{ curso[0] }}"
                     >
                     <i class="fas fa-trash-alt fa-lg" id="DeleteIcon"></i>
                   </a>
-              </td> -->
+              </td>
             </tr>
             {% endfor %}
           {% else %}
@@ -465,32 +472,36 @@
           <div class="modal-body">
             <!-- Formulario para editar curso -->
             <form id="formEditarCurso" method="POST" action="{{ url_for('editar_curso') }}">
-              <input type="hidden" id="editar-id_curso" name="id_curso">
-              <div class="form-group">
-                <label for="id_carrera">Carrera</label>
-                <select class="form-control" id="editar-id_carrera" name="id_carrera" required>
-                  <option value="">Seleccionar carrera</option>
-                  {% for carrera in carreras_select or carreras %}
-                    <option value="{{ carrera[4] }}">{{ carrera[1] }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="nombre">Nombre del Curso</label>
-                <input type="text" class="form-control" id="editar-nombre" name="nombre" required>
-              </div>
-              <div class="form-group">
-                <label for="año">Año Calendario</label>
-                <input type="number" class="form-control" id="editar-año" name="año_calendario" required>
-              </div>
-              <div class="form-group">
-                <label for="activo">Activo</label>
-                <select class="form-control" id="activo" name="editar-activo" required>
-                  <option value="1">Sí</option>
-                  <option value="0">No</option>
-                </select>
-              </div>
-            </form>
+            <input type="hidden" id="editar-id_curso" name="id_curso">
+
+            <div class="form-group">
+              <label for="editar-id_carrera">Carrera</label>
+              <select class="form-control" id="editar-id_carrera" name="id_carrera" required>
+                <option value="">Seleccionar carrera</option>
+                {% for carrera in carreras_select or carreras %}
+                  <option value="{{ carrera[0] }}">{{ carrera[1] }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="editar-nombre">Nombre del Curso</label>
+              <input type="text" class="form-control" id="editar-nombre" name="nombre" required>
+            </div>
+
+            <div class="form-group">
+              <label for="editar-año_calendario">Año Calendario</label>
+              <input type="number" class="form-control" id="editar-año_calendario" name="año_calendario" required>
+            </div>
+
+            <div class="form-group">
+              <label for="editar-activo">Activo</label>
+              <select class="form-control" id="editar-activo" name="activo" required>
+                <option value="1">Sí</option>
+                <option value="0">No</option>
+              </select>
+            </div>
+          </form>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
@@ -500,9 +511,33 @@
       </div>
     </div>
 
+    <!-- Modal para eliminar curso -->
+    <div id="modalEliminarCurso" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="modalEliminarCursoLabel" aria-hidden="true">
+      <form method="POST" action="{{ url_for('eliminar_curso') }}">
+        <input type="hidden" name="id_curso" id="eliminar-id_curso">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="modalEliminarCursoLabel">Eliminar Curso</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p>¿Estás seguro de que deseas eliminar el curso <span id="eliminar-nombre-curso"></span>?</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-danger" id="boton-eliminar">Eliminar</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
 
   <!-- Scripts -->
-   <script>
+  <script>
     $('#modalEditarCarrera').on('show.bs.modal', function (event) {
       var button = $(event.relatedTarget); // botón que abrió el modal
 
@@ -526,7 +561,20 @@
       modal.find('#editar-activo').val(activo);
     });
   </script>
-   <script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      const table = urlParams.get("table") || "carreras";
+      
+      // Ocultar todas las secciones
+      document.getElementById("carreras").style.display = "none";
+      document.getElementById("cursos").style.display = "none";
+      
+      // Mostrar la activa
+      document.getElementById(table).style.display = "block";
+    });
+  </script>
+  <script>
     $('#modalEliminarCarrera').on('show.bs.modal', function (event) {
       var button = $(event.relatedTarget); // botón que abrió el modal
 
@@ -540,8 +588,32 @@
       modal.find('#eliminar-nombre-carrera').text(nombre);
     });
   </script>
+  <script>
+    $('#modalEditarCurso').on('show.bs.modal', function (event) {
+      var button = $(event.relatedTarget);
 
+      // Tomar los valores del data-* del enlace
+      var id_curso = button.data('id_curso');
+      var nombre = button.data('nombre');
+      var año_calendario = button.data('año_calendario');
+      var activo = button.data('activo');
+      var nombre_carrera = button.data('nombre_carrera');
 
+      // Buscar los elementos del modal
+      var modal = $(this);
+      modal.find('#editar-id_curso').val(id_curso);
+      modal.find('#editar-nombre').val(nombre);
+      modal.find('#editar-año_calendario').val(año_calendario);
+      modal.find('#editar-activo').val(activo);
+
+      // Seleccionar la carrera según el nombre (si la tenés en el data)
+      modal.find('#editar-id_carrera option').each(function () {
+        if ($(this).text().trim() === nombre_carrera.trim()) {
+          $(this).prop('selected', true);
+        }
+      });
+    });
+  </script>
 
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.6/dist/umd/popper.min.js"></script>
