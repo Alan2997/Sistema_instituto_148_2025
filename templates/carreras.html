@@ -61,7 +61,8 @@
     <div class="container">
       {% include 'nav_carreras.html' %}
     </div>
-
+    
+    <!-- Contenido de la pestaña de Carreras -->
     <div class="container align-content-center align-items-center">
       <!-- Contenido de la pestaña de Carreras -->
       <div id="carreras" class="tab-content" style="display: none;">
@@ -355,7 +356,8 @@
             <th>Carrera</th>
             <th>Año Calendario</th>
             <th>Activo</th>
-            <th>Acciones</th>
+            <th>Editar</th>
+            <th>Eliminar</th>
           </tr>
         </thead>
         <tbody>
@@ -380,19 +382,19 @@
                 </a>
               </td>
               <td>
-                  <a href="#"
+                <a href="#"
                     data-toggle="modal"
                     data-target="#modalEliminarCurso"
                     data-id_curso="{{ curso[0] }}"
                     >
-                    <i class="fas fa-trash-alt fa-lg" id="DeleteIcon"></i>
-                  </a>
+                  <i class="fas fa-trash-alt fa-lg" id="DeleteIcon"></i>
+                </a>
               </td>
             </tr>
             {% endfor %}
           {% else %}
             <tr>
-              <td colspan="5" class="text-center text-muted">No hay cursos disponibles</td>
+              <td colspan="10" class="text-center text-muted">No hay cursos disponibles</td>
             </tr>
           {% endif %}
         </tbody>
@@ -535,8 +537,239 @@
       </form>
     </div>
 
+    <!-- Contenido de la pestaña de Materias -->
+    <div id="materias" class="tab-content container align-content-center align-items-center">
+      <h5 class="text-primary mt-5">Listado de Materias</h5>
+      <div class="d-flex justify-content-between align-items-center mb-3 gap-30">
+        <!-- Formulario de búsqueda y filtros -->
+        <form method="GET" action="{{ url_for('materias') }}" class="form-inline">
+          <input type="hidden" name="table" value="materias">
+          <input type="text" name="nombre" class="form-control mr-2" placeholder="Buscar por nombre" value="{{ nombre_busqueda or '' }}">
+          
+          <!-- Filtro de estado -->
+          <label class="mr-2">Estado:</label>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="activo" value="todos" id="todos_materias" {% if estado_activo == 'todos' %}checked{% endif %}>
+            <label class="form-check-label" for="todos_materias">Todos</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="activo" value="activos" id="activos_materias" {% if estado_activo == 'activos' %}checked{% endif %}>
+            <label class="form-check-label" for="activos_materias">Activos</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="activo" value="inactivos" id="inactivos_materias" {% if estado_activo == 'inactivos' %}checked{% endif %}>
+            <label class="form-check-label" for="inactivos_materias">Inactivos</label>
+          </div>
+
+          <button type="submit" class="btn btn-primary ml-2">
+            <i class="fas fa-search"></i> Buscar
+          </button>
+        </form>
+
+        <!-- Botón de agregar -->
+        <a href="#" class="btn btn-success" data-toggle="modal" data-target="#modalAgregarMateria">
+          <i class="fas fa-plus"></i> Agregar
+        </a>
+      </div>
+
+      <!-- Tabla de materias -->
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Curso</th>
+            <th>Nombre</th>
+            <th>Carga horaria</th>
+            <th>Activo</th>
+            <th>Editar</th>
+            <th>Eliminar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if materias %}
+            {% for materia in materias %}
+            <tr>   <!-- c0(id_m) c1(nombre) c2(carga_horaria) c3(activo) -->
+              <td>{{ materia[5] or '-' }}</td> <!-- nombre del curso -->
+              <td>{{ materia[1] }}</td> <!-- nombre_materia -->
+              <td>{{ materia[2] }}hs</td> <!-- carga_horaria -->
+              <td>{{ 'Sí' if materia[3] == 1 else 'No' }}</td> <!-- activo -->
+              <td>
+                <a href="#"
+                  data-toggle="modal"
+                  data-target="#modalEditarMateria"
+                  data-id_materia="{{ materia[0] }}"                   
+                  data-nombre="{{ materia[1] }}"
+                  data-carga_horaria="{{ materia[2] }}"
+                  data-activo="{{ materia[3] }}"
+                  data-id_curso="{{ materia[4] }}"
+                  <i class="fas fa-edit fa-lg" id="EditIcon"></i>
+                </a>
+              </td>
+              <td>
+                <a href="#"
+                    data-toggle="modal"
+                    data-target="#modalEliminarMateria"
+                    data-id_materia="{{ materia[0] }}"
+                    >
+                  <i class="fas fa-trash-alt fa-lg" id="DeleteIcon"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="10" class="text-center text-muted">No hay materias disponibles</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+
+      <!-- Paginación -->
+      {% if total_paginas_materias %}
+      <div class="pagination" id="clase-paginas">
+        <ul class="pagination">
+          {% for p in range(1, total_paginas_materias + 1) %}
+          <li class="page-item {% if p == page %}active{% endif %}" id="cuadrito">
+            <a class="page-link" href="{{ url_for('materias', page=p, table='materias', activo=estado_activo, nombre=nombre_busqueda) }}">{{ p }}</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Modal para agregar una materia -->
+    <div id="modalAgregarMateria" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="modalAgregarMateriaLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalAgregarMateriaLabel">Agregar Materia</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <!-- Formulario para agregar materia -->
+            <form id="formAgregarMateria" method="POST" action="{{ url_for('agregar_materia') }}">
+              <div class="form-group">
+                <label for="id_curso">Curso</label>
+                <select class="form-control" id="id_curso" name="id_curso" required>
+                  <option value="">Seleccionar curso</option>
+                  {% for curso in cursos_select or cursos %}
+                    <option value="{{ curso[0] }}">{{ curso[1] }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="nombre">Nombre de la Materia</label>
+                <input type="text" class="form-control" id="nombre" name="nombre" required>
+              </div>
+              <div class="form-group">
+                <label for="carga_horaria">Carga Horaria</label>
+                <input type="number" class="form-control" id="carga_horaria" name="carga_horaria" required>
+              </div>
+              <div class="form-group">
+                <label for="activo">Activo</label>
+                <select class="form-control" id="activo" name="activo" required>
+                  <option value="1">Sí</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" form="formAgregarMateria" class="btn btn-primary">Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para editar materia -->
+    <div id="modalEditarMateria" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="modalEditarMateriaLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalEditarMateriaLabel">Editar Materia</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <!-- Formulario para editar materia -->
+            <form id="formEditarMateria" method="POST" action="{{ url_for('editar_materia') }}">
+              <input type="hidden" id="editar-id_materia" name="id_materia">
+              <div class="form-group">
+                <label for="editar-id_curso">Curso</label>
+                <select class="form-control" id="id_curso_editar" name="id_curso" required>
+                  {% for curso in cursos %}
+                    <option value="{{ curso[0] }}">{{ curso[1] }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="editar-nombre">Nombre de la Materia</label>
+                <input type="text" class="form-control" id="editar-nombre" name="nombre" required>
+              </div>
+              <div class="form-group">
+                <label for="editar-carga_horaria">Carga Horaria</label>
+                <input type="number" class="form-control" id="editar-carga_horaria" name="carga_horaria" required>
+              </div>
+              <div class="form-group">
+                <label for="editar-activo">Activo</label>
+                <select class="form-control" id="editar-activo" name="activo" required>
+                  <option value="1">Sí</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" form="formEditarMateria" class="btn btn-primary">Guardar cambios</button>
+          </div>
+        </div>  
+      </div>
+    </div>
+
+    <!-- Modal para eliminar materia -->
+    <div id="modalEliminarMateria" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="modalEliminarMateriaLabel" aria-hidden="true">
+      <form method="POST" action="{{ url_for('eliminar_materia') }}">
+        <input type="hidden" name="id_materia" id="eliminar-id_materia">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="modalEliminarMateriaLabel">Eliminar Materia</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p>¿Estás seguro de que deseas eliminar la materia <span id="eliminar-nombre-materia"></span>?</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-danger" id="boton-eliminar">Eliminar</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
 
   <!-- Scripts -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      const table = urlParams.get("table") || "carreras";
+      
+      // Ocultar todas las secciones
+      document.getElementById("carreras").style.display = "none";
+      document.getElementById("cursos").style.display = "none";
+      
+      // Mostrar la activa
+      document.getElementById(table).style.display = "block";
+    });
+  </script>
+  <!-- Script editar carrera -->
   <script>
     $('#modalEditarCarrera').on('show.bs.modal', function (event) {
       var button = $(event.relatedTarget); // botón que abrió el modal
@@ -561,19 +794,7 @@
       modal.find('#editar-activo').val(activo);
     });
   </script>
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const urlParams = new URLSearchParams(window.location.search);
-      const table = urlParams.get("table") || "carreras";
-      
-      // Ocultar todas las secciones
-      document.getElementById("carreras").style.display = "none";
-      document.getElementById("cursos").style.display = "none";
-      
-      // Mostrar la activa
-      document.getElementById(table).style.display = "block";
-    });
-  </script>
+  <!-- Script eliminar carrera -->
   <script>
     $('#modalEliminarCarrera').on('show.bs.modal', function (event) {
       var button = $(event.relatedTarget); // botón que abrió el modal
@@ -588,6 +809,7 @@
       modal.find('#eliminar-nombre-carrera').text(nombre);
     });
   </script>
+  <!-- Script editar curso -->
   <script>
     $('#modalEditarCurso').on('show.bs.modal', function (event) {
       var button = $(event.relatedTarget);
@@ -614,7 +836,55 @@
       });
     });
   </script>
+  <!-- Script eliminar curso -->
+  <script>
+    $('#modalEliminarCurso').on('show.bs.modal', function (event) {
+      var button = $(event.relatedTarget); // Botón que disparó el modal
+      var idCurso = button.data('id_curso'); // Extrae el data-id_curso
 
+      var modal = $(this);
+      modal.find('#eliminar-id_curso').val(idCurso);
+    });
+  </script>
+  <!-- Script editar materia -->
+  <script>
+    $('#modalEditarMateria').on('show.bs.modal', function (event) {
+      var button = $(event.relatedTarget);
+
+      // Tomar los valores del data-* del enlace
+      var id_materia = button.data('id_materia');
+      var nombre = button.data('nombre');
+      var carga_horaria = button.data('carga_horaria');
+      var activo = button.data('activo');
+      var id_curso = button.data('id_curso');
+      var nombre_curso = button.data('nombre_curso'); // 👈 Nuevo campo
+
+      // Buscar los elementos del modal y asignar valores
+      var modal = $(this);
+      modal.find('#editar-id_materia').val(id_materia);
+      modal.find('#editar-nombre').val(nombre);
+      modal.find('#editar-carga_horaria').val(carga_horaria);
+      modal.find('#editar-activo').val(activo);
+      modal.find('#id_curso_editar').val(id_curso);
+    });
+  </script>
+  <!-- Script eliminar materia -->
+  <script>
+    $('#modalEliminarMateria').on('show.bs.modal', function (event) {
+      var button = $(event.relatedTarget); // botón que abrió el modal
+
+      // Obtener datos del botón
+      var id_materia = button.data('id_materia');
+      var nombre = button.data('nombre');
+
+      // Pasar datos al modal
+      var modal = $(this);
+      modal.find('#eliminar-id_materia').val(id_materia);
+      modal.find('#eliminar-nombre-materia').text(nombre);
+    });
+  </script>
+
+  <!-- jQuery, Popper.js, Bootstrap JS -->
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.6/dist/umd/popper.min.js"></script>
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>

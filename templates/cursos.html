@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carreras - Sistema de Gestión Académica</title>
+
+  <!-- Fuentes y Bootstrap -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+  <script>
+    function showTab(tabName) {
+      const tabs = document.querySelectorAll('.tab-content');
+      tabs.forEach(tab => tab.style.display = 'none');
+
+      const activeTab = document.getElementById(tabName);
+      if (activeTab) {
+        activeTab.style.display = 'block';
+      }
+
+      const tabButtons = document.querySelectorAll('.tabs button');
+      tabButtons.forEach(button => button.classList.remove('active'));
+      document.getElementById(tabName + '-btn').classList.add('active');
+    }
+
+    window.onload = function() {
+      const table = '{{ table }}';  
+      if (table === 'carreras_inactivas') {
+        showTab('carreras_inactivas');
+      } else {
+        showTab('carreras');  // por defecto mostramos carreras
+      }
+    };
+  </script>
+
+  <style>
+    html {
+      margin-left: 15%;
+      margin-top: 10%;
+      height: 60%;
+      align-items: center;
+    }
+    html, body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    body {
+      width: 100%;
+    }
+    #boton-guardar {
+      background-color: #518ec3;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  {% include 'navbar.html' %}
+    <div class="container">
+      {% include 'nav_carreras.html' %}
+    </div>
+
+    <!-- Contenido de la pestaña de Cursos -->
+    <div id="cursos" class="tab-content container align-content-center align-items-center">
+      <h5 class="text-primary mt-5">Listado de Cursos</h5>
+
+      <div class="d-flex justify-content-between align-items-center mb-3 gap-30">
+        <!-- Formulario de búsqueda y filtros -->
+        <form method="GET" action="{{ url_for('cursos') }}" class="form-inline">
+          <input type="hidden" name="table" value="cursos">
+          <input type="text" name="nombre" class="form-control mr-2" placeholder="Buscar por nombre" value="{{ nombre_busqueda or '' }}">
+          
+          <!-- Filtro de estado -->
+          <label class="mr-2">Estado:</label>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="activo" value="todos" id="todos_cursos" {% if estado_activo == 'todos' %}checked{% endif %}>
+            <label class="form-check-label" for="todos_cursos">Todos</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="activo" value="activos" id="activos_cursos" {% if estado_activo == 'activos' %}checked{% endif %}>
+            <label class="form-check-label" for="activos_cursos">Activos</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="activo" value="inactivos" id="inactivos_cursos" {% if estado_activo == 'inactivos' %}checked{% endif %}>
+            <label class="form-check-label" for="inactivos_cursos">Inactivos</label>
+          </div>
+
+          <button type="submit" class="btn btn-primary ml-2">
+            <i class="fas fa-search"></i> Buscar
+          </button>
+        </form>
+
+        <!-- Botón de agregar -->
+        <a href="#" class="btn btn-success" data-toggle="modal" data-target="#modalAgregarCurso">
+          <i class="fas fa-plus"></i> Agregar
+        </a>
+      </div>
+
+      <!-- Tabla de cursos -->
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Carrera</th>
+            <th>Año Calendario</th>
+            <th>Activo</th>
+            <th>Editar</th>
+            <th>Eliminar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if cursos %}
+            {% for curso in cursos %}
+            <tr>   <!-- c0(id_c) c1(nombre) c2(año_calendario) c3(activo) c4(carrera) -->
+              <td>{{ curso[1] }}</td> <!-- nombre_curso -->
+              <td>{{ curso[4] }}</td> <!-- nombre_carrera -->
+              <td>{{ curso[2] }}</td> <!-- año_calendario -->
+              <td>{{ 'Sí' if curso[3] == 1 else 'No' }}</td> <!-- activo -->
+              <td>
+                <a href="#"
+                    data-toggle="modal"
+                    data-target="#modalEditarCurso"
+                    data-id_curso="{{ curso[0] }}"                   
+                    data-nombre="{{ curso[1] }}"
+                    data-nombre_carrera="{{ curso[4] }}"
+                    data-año_calendario="{{ curso[2] }}"
+                    data-activo="{{ curso[3] }}"
+                    >
+                  <i class="fas fa-edit fa-lg" id="EditIcon"></i>
+                </a>
+              </td>
+              <td>
+                <a href="#"
+                    data-toggle="modal"
+                    data-target="#modalEliminarCurso"
+                    data-id_curso="{{ curso[0] }}"
+                    >
+                  <i class="fas fa-trash-alt fa-lg" id="DeleteIcon"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="10" class="text-center text-muted">No hay cursos disponibles</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+
+      <!-- Paginación -->
+      {% if total_paginas_cursos %}
+      <div class="pagination" id="clase-paginas">
+        <ul class="pagination">
+          {% for p in range(1, total_paginas_cursos + 1) %}
+          <li class="page-item {% if p == page %}active{% endif %}" id="cuadrito">
+            <a class="page-link" href="{{ url_for('cursos', page=p, table='cursos', activo=estado_activo, nombre=nombre_busqueda) }}">{{ p }}</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Modal para agregar curso -->
+    <div id="modalAgregarCurso" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="modalAgregarCursoLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalAgregarCursoLabel">Agregar Curso</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <!-- Formulario para agregar curso -->
+            <form id="formAgregarCurso" method="POST" action="{{ url_for('agregar_curso') }}">
+              <div class="form-group">
+                <label for="id_carrera">Carrera</label>
+                <select class="form-control" id="id_carrera" name="id_carrera" required>
+                  <option value="">Seleccionar carrera</option>
+                  {% for carrera in carreras_select or carreras %}
+                    <option value="{{ carrera[0] }}">{{ carrera[1] }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="nombre">Nombre del Curso</label>
+                <input type="text" class="form-control" id="nombre" name="nombre" required>
+              </div>
+              <div class="form-group">
+                <label for="año">Año Calendario</label>
+                <input type="number" class="form-control" id="año" name="año" required>
+              </div>
+              <div class="form-group">
+                <label for="activo">Activo</label>
+                <select class="form-control" id="activo" name="activo" required>
+                  <option value="1">Sí</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" form="formAgregarCurso" class="btn btn-primary">Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para editar curso -->
+    <div id="modalEditarCurso" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="modalEditarCursoLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalEditarCursoLabel">Editar Curso</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <!-- Formulario para editar curso -->
+            <form id="formEditarCurso" method="POST" action="{{ url_for('editar_curso') }}">
+            <input type="hidden" id="editar-id_curso" name="id_curso">
+
+            <div class="form-group">
+              <label for="editar-id_carrera">Carrera</label>
+              <select class="form-control" id="editar-id_carrera" name="id_carrera" required>
+                <option value="">Seleccionar carrera</option>
+                {% for carrera in carreras_select or carreras %}
+                  <option value="{{ carrera[0] }}">{{ carrera[1] }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="editar-nombre">Nombre del Curso</label>
+              <input type="text" class="form-control" id="editar-nombre" name="nombre" required>
+            </div>
+
+            <div class="form-group">
+              <label for="editar-año_calendario">Año Calendario</label>
+              <input type="number" class="form-control" id="editar-año_calendario" name="año_calendario" required>
+            </div>
+
+            <div class="form-group">
+              <label for="editar-activo">Activo</label>
+              <select class="form-control" id="editar-activo" name="activo" required>
+                <option value="1">Sí</option>
+                <option value="0">No</option>
+              </select>
+            </div>
+          </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" form="formEditarCurso" class="btn btn-primary">Guardar cambios</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para eliminar curso -->
+    <div id="modalEliminarCurso" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="modalEliminarCursoLabel" aria-hidden="true">
+      <form method="POST" action="{{ url_for('eliminar_curso') }}">
+        <input type="hidden" name="id_curso" id="eliminar-id_curso">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="modalEliminarCursoLabel">Eliminar Curso</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <p>¿Estás seguro de que deseas eliminar el curso <span id="eliminar-nombre-curso"></span>?</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-danger" id="boton-eliminar">Eliminar</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Script editar carrera -->
+  <script>
+    $('#modalEditarCarrera').on('show.bs.modal', function (event) {
+      var button = $(event.relatedTarget); // botón que abrió el modal
+
+      // Obtener datos del botón
+      var id = button.data('id');
+      var nombre = button.data('nombre');
+      var descripcion = button.data('descripcion');
+      var tipo = button.data('tipo');
+      var año = button.data('año');
+      var fecha = button.data('fecha');
+      var activo = button.data('activo');
+
+      // Pasar datos al modal
+      var modal = $(this);
+      modal.find('#editar-id_carrera').val(id);
+      modal.find('#editar-nombre').val(nombre);
+      modal.find('#editar-descripcion').val(descripcion);
+      modal.find('#editar-tipo').val(tipo);
+      modal.find('#editar-año').val(año);
+      modal.find('#editar-fecha').val(fecha);
+      modal.find('#editar-activo').val(activo);
+    });
+  </script>
+  <!-- Script eliminar carrera -->
+  <script>
+    $('#modalEliminarCarrera').on('show.bs.modal', function (event) {
+      var button = $(event.relatedTarget); // botón que abrió el modal
+
+      // Obtener datos del botón
+      var id = button.data('id');
+      var nombre = button.data('nombre');
+
+      // Pasar datos al modal
+      var modal = $(this);
+      modal.find('#eliminar-id_carrera').val(id);
+      modal.find('#eliminar-nombre-carrera').text(nombre);
+    });
+  </script>
+</body>
+</html>

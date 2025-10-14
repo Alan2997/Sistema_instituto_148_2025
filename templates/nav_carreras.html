@@ -1,48 +1,54 @@
 <script>
-  function showTab(tabId) {
-    // Oculta todas las pestañas
-    document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
+function showTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
+  const activeTab = document.getElementById(tabId);
+  if (activeTab) activeTab.style.display = 'block';
 
-    // Muestra la seleccionada
-    const activeTab = document.getElementById(tabId);
-    if (activeTab) activeTab.style.display = 'block';
+  document.querySelectorAll('#menu .nav-link').forEach(link => link.classList.remove('active'));
+  const activeLink = document.getElementById(tabId + '-btn');
+  if (activeLink) activeLink.classList.add('active');
 
-    // Actualiza el nav activo
-    document.querySelectorAll('#menu .nav-link').forEach(link => link.classList.remove('active'));
-    const activeLink = document.getElementById(tabId + '-btn');
-    if (activeLink) activeLink.classList.add('active');
+  // Si la pestaña es "materias", pedimos al backend los datos vía AJAX
+  if (tabId === 'materias') {
+    fetch('/materias')
+      .then(resp => resp.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const newDoc = parser.parseFromString(html, 'text/html');
+        const newContent = newDoc.querySelector('#materias');
+        if (newContent) activeTab.innerHTML = newContent.innerHTML;
+      });
   }
+}
 
-  document.addEventListener('DOMContentLoaded', function () {
-    // Detectar qué pestaña mostrar según el backend
-    const defaultTab = "{{ table or 'carreras' }}";
-    showTab(defaultTab);
-  });
+window.onload = function() {
+  const table = '{{ table }}';
+  if (table === 'cursos') {
+    showTab('cursos');
+  } else if (table === 'carreras_inactivas') {
+    showTab('carreras_inactivas');
+  } else {
+    showTab('carreras');  // por defecto
+  }
+};
+
+
+// Mostrar la pestaña por defecto al cargar la página
+window.addEventListener("DOMContentLoaded", function() {
+  showTab('carreras'); // o 'cursos' si querés abrir cursos por defecto
+});
 </script>
-
 
 <nav role="navigation" id="menu">
   <ul class="nav nav-pills" id="pills-tab">
     <li class="nav-item" role="presentation">
-      <a class="flex-sm-fill text-sm-center nav-link" id="carreras-btn" href="#" onclick="showTab('carreras')">
-        Carreras
-      </a>
+      <a class="nav-link" href="{{ url_for('carreras') }}">Carreras</a>
     </li>
     <li class="nav-item" role="presentation">
-      <a class="flex-sm-fill text-sm-center nav-link" id="cursos-btn" href="#" onclick="showTab('cursos')">
-        Cursos
-      </a>
+      <a class="nav-link active" href="{{ url_for('cursos') }}">Cursos</a>
     </li>
     <li class="nav-item" role="presentation">
-      <a class="flex-sm-fill text-sm-center nav-link" id="materias-btn" href="#" onclick="showTab('materias')">
-        Materias
-      </a>
-    </li>
-    <li class="nav-item" role="presentation">
-      <a class="flex-sm-fill text-sm-center nav-link" id="matriculacion-btn" href="#" onclick="showTab('matriculacion')">
-        Matriculación
-      </a>
+      <a class="nav-link" href="#" onclick="showTab('materias')">Materias</a>
     </li>
   </ul>
 </nav>
-

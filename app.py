@@ -576,6 +576,7 @@ def editar_ingresante(id_usuario):
         alumno_turno=alumno_turno
     )
 
+# Listado de carreras
 @app.route("/carreras")
 def carreras():
     nombre_busqueda = request.args.get('nombre', '')
@@ -616,6 +617,7 @@ def carreras():
         estado_activo=estado_activo
     )
 
+# Agregar carrera
 @app.route("/agregar_carrera", methods=["GET", "POST"])
 def agregar_carrera():
     if 'nombre' not in session:  # si tu sistema tiene login
@@ -650,9 +652,10 @@ def agregar_carrera():
         query = "SELECT * FROM carreras ORDER BY id_carrera DESC"
         carreras = ejecutar_sql(query)  # fetch=True para obtener resultados
 
-    return render_template("carreras.html", carreras=carreras)
-    
+    return redirect(url_for("carreras", table="carreras"))
 
+    
+# Editar carrera
 @app.route("/editar_carrera", methods=["POST"])
 def editar_carrera():
     id_carrera = request.form.get("id_carrera")
@@ -674,6 +677,7 @@ def editar_carrera():
 
     return redirect(url_for("carreras"))
 
+# Eliminar carrera
 @app.route("/eliminar_carrera", methods=["POST"])
 def eliminar_carrera():
     print("request", request.form)
@@ -683,6 +687,7 @@ def eliminar_carrera():
     print("Eliminando carrera:", id_carrera)
     ejecutar_sql(query, values)
     return redirect(url_for("carreras"))
+
 # Listado de cursos
 @app.route("/cursos")
 def cursos():
@@ -726,6 +731,7 @@ def cursos():
         estado_activo=estado_activo
     )
 
+# Agregar curso
 @app.route("/agregar_curso", methods=["POST"])
 def agregar_curso():
     if 'nombre' not in session:
@@ -744,9 +750,7 @@ def agregar_curso():
     ejecutar_sql(query, values)
 
     # 🔁 Redirige a la vista de cursos con table='cursos'
-    return redirect(url_for("carreras", table="cursos"))
-
-
+    return redirect(url_for("cursos"))
 
 # Editar curso
 @app.route("/editar_curso", methods=["GET", "POST"])
@@ -768,9 +772,10 @@ def editar_curso():
     print("Editando curso:", id_carrera, nombre, año_calendario, activo)
     ejecutar_sql(query, values)
 
-    return redirect(url_for("carreras", table="cursos"))
+    return redirect(url_for("cursos"))
 
-@app.route("/eliminar_curso", methods=["POST"])
+# Eliminar curso
+@app.route("/eliminar_curso", methods=["DELETE", "POST"])
 def eliminar_curso():
     print("request curso", request.form)
     id_curso = request.form.get("id_curso")
@@ -778,7 +783,129 @@ def eliminar_curso():
     values = [id_curso]
     print("Eliminando curso:", id_curso)
     ejecutar_sql(query, values)
-    return redirect(url_for("carreras", table="cursos"))
+    return redirect(url_for("cursos"))
+
+# Listado de materias
+@app.route("/materias")
+def materias():
+    page = int(request.args.get("page", 1))
+    nombre_busqueda = request.args.get("nombre", "")
+    estado_activo = request.args.get("activo", "todos")
+
+    # --- Traer materias ---
+    query = """
+        SELECT 
+            m.id_materia,
+            m.nombre AS nombre_materia,
+            m.carga_horaria,
+            m.activo,
+            m.id_curso,
+            c.nombre AS nombre_curso
+        FROM materias AS m
+        LEFT JOIN cursos AS c ON m.id_curso = c.id_curso
+        WHERE 1=1
+    """
+
+    valores = []
+
+    if nombre_busqueda:
+        query += " AND nombre LIKE %s"
+        valores.append(f"%{nombre_busqueda}%")
+
+    if estado_activo == "activos":
+        query += " AND activo = 1"
+    elif estado_activo == "inactivos":
+        query += " AND activo = 0"
+
+    query += " ORDER BY id_materia DESC"
+
+    print("🔍 Consulta SQL Materias:", query)
+    print("🔹 Valores:", valores)
+
+    materias = ejecutar_sql(query, valores) or []
+    print("✅ Materias encontradas:", materias)
+
+    # --- Traer carreras y cursos ---
+    carreras = ejecutar_sql("SELECT id_carrera, nombre FROM carreras") or []
+    cursos = ejecutar_sql("SELECT id_curso, nombre FROM cursos") or []
+
+    total_paginas_materias = 1
+
+    return render_template(
+        "carreras.html",
+        cursos=cursos,
+        carreras=carreras,
+        materias=materias,
+        table="materias",
+        estado_activo=estado_activo,
+        total_paginas_materias=total_paginas_materias,
+        page=page,
+        nombre_busqueda=nombre_busqueda,
+    )
+
+# Agregar materia
+@app.route("/agregar_materia", methods=["POST"])
+def agregar_materia():
+    if 'nombre' not in session:
+        return redirect(url_for('login'))
+
+    id_materia = request.form.get("id_materia")
+    id_curso = request.form.get("id_curso")
+    nombre = request.form.get("nombre")
+    carga_horaria = request.form.get("carga_horaria")
+    activo = request.form.get("activo", 1)
+
+    query = """
+        INSERT INTO materias (id_materia, id_curso, nombre, carga_horaria, activo)
+        VALUES (%s, %s, %s, %s, %s)
+    """
+    values = (id_materia, id_curso, nombre, carga_horaria, activo)
+    print("Agregando materia:", id_materia, id_curso, nombre, carga_horaria, activo)
+    ejecutar_sql(query, values)
+
+    # 🔁 Redirige a la vista de cursos con table='cursos'
+    return redirect(url_for("carreras", table="materias"))
+
+# Editar materia
+@app.route("/editar_materia", methods=["POST"])
+def editar_materia():
+    if 'nombre' not in session:
+        return redirect(url_for('login'))
+
+    id_materia = request.form.get("id_materia")
+    id_curso = request.form.get("id_curso")
+    nombre = request.form.get("nombre")
+    carga_horaria = request.form.get("carga_horaria")
+    activo = request.form.get("activo", 1)
+
+    query = """
+        UPDATE materias
+        SET id_curso = %s,
+            nombre = %s,
+            carga_horaria = %s,
+            activo = %s
+        WHERE id_materia = %s
+    """
+    values = [id_curso, nombre, carga_horaria, activo, id_materia]
+
+    print("🛠️ Editando materia:", values)
+    ejecutar_sql(query, values)
+
+    return redirect(url_for("carreras", table="materias"))
+
+# Eliminar materia
+@app.route("/eliminar_materia", methods=["DELETE", "POST"])
+def eliminar_materia():
+    if 'nombre' not in session:
+        return redirect(url_for('login'))
+
+    print("request materia", request.form)
+    id_materia = request.form.get("id_materia")
+    query = "DELETE FROM materias WHERE id_materia=%s"
+    values = [id_materia]
+    print("Eliminando materia:", id_materia)
+    ejecutar_sql(query, values)
+    return redirect(url_for("carreras", table="materias"))
 
 @app.route('/ingresante/<int:id_usuario>/borrar', methods=['POST'])
 @perfil_requerido(['1', '2'])  # Solo perfiles 1 (directivo) y 2 (preseptor) pueden acceder
