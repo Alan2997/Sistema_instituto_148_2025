@@ -809,15 +809,15 @@ def materias():
     valores = []
 
     if nombre_busqueda:
-        query += " AND nombre LIKE %s"
+        query += " AND m.nombre LIKE %s"
         valores.append(f"%{nombre_busqueda}%")
 
     if estado_activo == "activos":
-        query += " AND activo = 1"
+        query += " AND m.activo = 1"
     elif estado_activo == "inactivos":
-        query += " AND activo = 0"
+        query += " AND m.activo = 0"
 
-    query += " ORDER BY id_materia DESC"
+    query += " ORDER BY m.id_materia DESC"
 
     print("🔍 Consulta SQL Materias:", query)
     print("🔹 Valores:", valores)
@@ -837,10 +837,7 @@ def materias():
         carreras=carreras,
         materias=materias,
         table="materias",
-        estado_activo=estado_activo,
-        total_paginas_materias=total_paginas_materias,
-        page=page,
-        nombre_busqueda=nombre_busqueda,
+        estado_activo=estado_activo
     )
 
 # Agregar materia
@@ -864,7 +861,7 @@ def agregar_materia():
     ejecutar_sql(query, values)
 
     # 🔁 Redirige a la vista de cursos con table='cursos'
-    return redirect(url_for("carreras", table="materias"))
+    return redirect(url_for("materias"))
 
 # Editar materia
 @app.route("/editar_materia", methods=["POST"])
@@ -891,7 +888,7 @@ def editar_materia():
     print("🛠️ Editando materia:", values)
     ejecutar_sql(query, values)
 
-    return redirect(url_for("carreras", table="materias"))
+    return redirect(url_for("materias"))
 
 # Eliminar materia
 @app.route("/eliminar_materia", methods=["DELETE", "POST"])
@@ -905,7 +902,8 @@ def eliminar_materia():
     values = [id_materia]
     print("Eliminando materia:", id_materia)
     ejecutar_sql(query, values)
-    return redirect(url_for("carreras", table="materias"))
+    return redirect(url_for("materias"))
+
 
 @app.route('/ingresante/<int:id_usuario>/borrar', methods=['POST'])
 @perfil_requerido(['1', '2'])  # Solo perfiles 1 (directivo) y 2 (preseptor) pueden acceder

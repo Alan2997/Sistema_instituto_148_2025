@@ -1,14 +1,49 @@
+<style>
+  /* Estilo para resaltar el enlace activo */
+  #menu .nav-link.active {
+    background-color: #5DB3B7 !important; /* azul Bootstrap */
+    color: white !important;
+    font-weight: 600;
+    border-radius: 6px;
+  }
+
+  /* Opcional: transición suave */
+  #menu .nav-link {
+    transition: background-color 0.3s, color 0.3s;
+  }
+</style>
+
+<nav role="navigation" id="menu">
+  <ul class="nav nav-pills" id="pills-tab">
+    <li class="nav-item" role="presentation">
+      <a id="carreras-btn" class="nav-link" href="javascript:void(0);" onclick="showTab('carreras')">Carreras</a>
+    </li>
+    <li class="nav-item" role="presentation">
+      <a id="cursos-btn" class="nav-link" href="javascript:void(0);" onclick="showTab('cursos')">Cursos</a>
+    </li>
+    <li class="nav-item" role="presentation">
+      <a id="materias-btn" class="nav-link" href="javascript:void(0);" onclick="showTab('materias')">Materias</a>
+    </li>
+  </ul>
+</nav>
+
 <script>
 function showTab(tabId) {
+  // Oculta todas las pestañas
   document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
+
+  // Muestra la pestaña seleccionada
   const activeTab = document.getElementById(tabId);
   if (activeTab) activeTab.style.display = 'block';
 
+  // Quita la clase "active" de todos los enlaces
   document.querySelectorAll('#menu .nav-link').forEach(link => link.classList.remove('active'));
+
+  // Agrega la clase "active" al botón correspondiente
   const activeLink = document.getElementById(tabId + '-btn');
   if (activeLink) activeLink.classList.add('active');
 
-  // Si la pestaña es "materias", pedimos al backend los datos vía AJAX
+  // Si la pestaña es "materias", pedimos los datos al backend
   if (tabId === 'materias') {
     fetch('/materias')
       .then(resp => resp.text())
@@ -21,34 +56,15 @@ function showTab(tabId) {
   }
 }
 
+// Al cargar la página, mostrar la pestaña correspondiente
 window.onload = function() {
   const table = '{{ table }}';
   if (table === 'cursos') {
     showTab('cursos');
-  } else if (table === 'carreras_inactivas') {
-    showTab('carreras_inactivas');
+  } else if (table === 'materias') {
+    showTab('materias');
   } else {
-    showTab('carreras');  // por defecto
+    showTab('carreras'); // por defecto
   }
 };
-
-
-// Mostrar la pestaña por defecto al cargar la página
-window.addEventListener("DOMContentLoaded", function() {
-  showTab('carreras'); // o 'cursos' si querés abrir cursos por defecto
-});
 </script>
-
-<nav role="navigation" id="menu">
-  <ul class="nav nav-pills" id="pills-tab">
-    <li class="nav-item" role="presentation">
-      <a class="nav-link" href="{{ url_for('carreras') }}">Carreras</a>
-    </li>
-    <li class="nav-item" role="presentation">
-      <a class="nav-link active" href="{{ url_for('cursos') }}">Cursos</a>
-    </li>
-    <li class="nav-item" role="presentation">
-      <a class="nav-link" href="#" onclick="showTab('materias')">Materias</a>
-    </li>
-  </ul>
-</nav>
