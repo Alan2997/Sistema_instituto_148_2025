@@ -622,24 +622,29 @@ def carreras():
 def agregar_carrera():
     if 'nombre' not in session:  # si tu sistema tiene login
         return redirect(url_for('login'))
-
+    
     if request.method == "POST":
         nombre = request.form.get("nombre")
         descripcion = request.form.get("descripcion")
         tipo = request.form.get("tipo")
         año = request.form.get("año")
-        fecha = request.form.get("fecha") or date.today().strftime("%Y-%m-%d")
-        
+        fecha = date.today().strftime("%Y-%m-%d")
         ley_file = request.files.get("ley")
         ley_filename = None
 
-        print(
-            nombre,
-            descripcion,
-            tipo,
-            año,
-            fecha,
-            )
+        # 🔍 Validaciones
+        if not nombre:
+            flash("El nombre es obligatorio", "error")
+            return redirect(url_for("agregar_carrera"))
+        if not descripcion:
+            flash("La descripción es obligatoria", "error")
+            return redirect(url_for("agregar_carrera"))
+        if not año:
+            flash("El año es obligatorio", "error")
+            return redirect(url_for("agregar_carrera"))
+        if not tipo:
+            flash("El tipo es obligatorio", "error")
+            return redirect(url_for("agregar_carrera"))
 
         # Insertar en la base de datos
         query = """
@@ -653,8 +658,7 @@ def agregar_carrera():
         carreras = ejecutar_sql(query)  # fetch=True para obtener resultados
 
     return redirect(url_for("carreras", table="carreras"))
-
-    
+ 
 # Editar carrera
 @app.route("/editar_carrera", methods=["POST"])
 def editar_carrera():
@@ -663,8 +667,26 @@ def editar_carrera():
     descripcion = request.form.get("descripcion")
     tipo = request.form.get("tipo")
     año = request.form.get("año")
-    fecha = request.form.get("fecha")
+    fecha = date.today().strftime("%Y-%m-%d")
     activo = request.form.get("activo", 1)
+
+    # 🔍 Validaciones
+    if not id_carrera:
+        flash("No se encontro la carrera seleccionada", "error")
+        return redirect(url_for("agregar_carrera"))
+    if not nombre:
+        flash("El nombre es obligatorio", "error")
+        return redirect(url_for("agregar_carrera"))
+    if not descripcion:
+        flash("La descripción es obligatoria", "error")
+        return redirect(url_for("agregar_carrera"))
+    if not año:
+        flash("El año es obligatorio", "error")
+        return redirect(url_for("agregar_carrera"))
+    if not tipo:
+        flash("El tipo es obligatorio", "error")
+        return redirect(url_for("agregar_carrera"))
+
 
     query = """
         UPDATE carreras
@@ -739,7 +761,7 @@ def agregar_curso():
 
     id_carrera = request.form.get("id_carrera")
     nombre = request.form.get("nombre")
-    año = request.form.get("año")
+    año = request.form.get("año_calendario")
     activo = request.form.get("activo", 1)
 
     query = """

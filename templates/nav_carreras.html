@@ -28,43 +28,38 @@
 </nav>
 
 <script>
-function showTab(tabId) {
-  // Oculta todas las pestañas
-  document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
+window.onload = function() {
+  const path = window.location.pathname;
 
-  // Muestra la pestaña seleccionada
-  const activeTab = document.getElementById(tabId);
-  if (activeTab) activeTab.style.display = 'block';
+  // Oculta todas las pestañas al inicio
+  document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
 
   // Quita la clase "active" de todos los enlaces
   document.querySelectorAll('#menu .nav-link').forEach(link => link.classList.remove('active'));
 
-  // Agrega la clase "active" al botón correspondiente
-  const activeLink = document.getElementById(tabId + '-btn');
-  if (activeLink) activeLink.classList.add('active');
-
-  // Si la pestaña es "materias", pedimos los datos al backend
-  if (tabId === 'materias') {
-    fetch('/materias')
-      .then(resp => resp.text())
-      .then(html => {
-        const parser = new DOMParser();
-        const newDoc = parser.parseFromString(html, 'text/html');
-        const newContent = newDoc.querySelector('#materias');
-        if (newContent) activeTab.innerHTML = newContent.innerHTML;
-      });
-  }
-}
-
-// Al cargar la página, mostrar la pestaña correspondiente
-window.onload = function() {
-  const table = '{{ table }}';
-  if (table === 'cursos') {
-    showTab('cursos');
-  } else if (table === 'materias') {
-    showTab('materias');
-  } else {
-    showTab('carreras'); // por defecto
+  // Mostrar y marcar la pestaña según la URL
+  if (path.includes('carreras')) {
+    document.getElementById('carreras').style.display = 'block';
+    document.getElementById('carreras-btn').classList.add('active');
+  } else if (path.includes('cursos')) {
+    document.getElementById('cursos').style.display = 'block';
+    document.getElementById('cursos-btn').classList.add('active');
+  } else if (path.includes('materias')) {
+    document.getElementById('materias').style.display = 'block';
+    document.getElementById('materias-btn').classList.add('active');
   }
 };
+
+// Redirige al backend al cambiar de pestaña
+function showTab(tabId) {
+  if (tabId === 'carreras') {
+    window.location.href = '/carreras';
+  } else if (tabId === 'cursos') {
+    window.location.href = '/cursos';
+  } else if (tabId === 'materias') {
+    window.location.href = '/materias';
+  }
+}
 </script>
+
+
