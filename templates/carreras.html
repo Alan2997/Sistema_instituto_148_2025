@@ -115,7 +115,6 @@
               <th>Fecha</th>
               <th>Activo</th>
               <th>Editar</th>
-              <th>Eliminar</th>
             </tr>
           </thead>
           <tbody>
@@ -139,21 +138,14 @@
                     data-descripcion="{{ carrera[2] }}"
                     data-tipo="{{ carrera[3] }}"
                     data-año="{{ carrera[4] }}"
+                    data-ley="{{ carrera[5] }}"
                     data-fecha="{{ carrera[6] }}"
                     data-activo="{{ carrera[7] }}"
                     >
                     <i class="fas fa-edit fa-lg" id="EditIcon"></i>
                   </a>
                 </td>
-                <td>
-                  <a href="#"
-                    data-toggle="modal"
-                    data-target="#modalEliminarCarrera"
-                    data-id="{{ carrera[0] }}"
-                    >
-                    <i class="fas fa-trash-alt fa-lg" id="DeleteIcon"></i>
-                  </a>
-                </td>
+                
               </tr>
               {% endfor %}
             {% else %}
@@ -226,7 +218,7 @@
                 </div>
                 <div class="col-md-4 form-group">
                   <label for="ley">Ley</label>
-                  <input type="file" class="form-control form-control-sm" id="ley" name="ley">
+                  <input type="text" class="form-control form-control-sm" id="ley" name="ley">
                 </div>
               </div>
             </div>
@@ -278,10 +270,14 @@
                   <select id="editar-año" name="año" class="form-control form-control-sm"></select>
                 </div>
                 <div class="col-md-4 form-group">
-                  <label for="editar-fecha">Fecha</label>
-                  <input type="date" class="form-control form-control-sm" id="editar-fecha" name="fecha">
+                  <label for="editar-fecha">Fecha creación</label>
+                  <input type="text" class="form-control form-control-sm" id="editar-fecha" name="fecha" disabled>
                 </div>
-                <div class="col-md-12 form-group">
+                <div class="col-md-6 form-group">
+                  <label for="editar-ley">Ley</label>
+                  <input type="text" class="form-control form-control-sm" id="editar-ley" name="ley">
+                </div>
+                <div class="col-md-6 form-group">
                   <label>Activo</label>
                   <select class="form-control form-control-sm" name="activo" id="editar-activo">
                     <option value="1">Sí</option>
@@ -369,7 +365,6 @@
             <th>Año Calendario</th>
             <th>Activo</th>
             <th>Editar</th>
-            <th>Eliminar</th>
           </tr>
         </thead>
         <tbody>
@@ -391,15 +386,6 @@
                     data-activo="{{ curso[3] }}"
                     >
                   <i class="fas fa-edit fa-lg" id="EditIcon"></i>
-                </a>
-              </td>
-              <td>
-                <a href="#"
-                    data-toggle="modal"
-                    data-target="#modalEliminarCurso"
-                    data-id_curso="{{ curso[0] }}"
-                    >
-                  <i class="fas fa-trash-alt fa-lg" id="DeleteIcon"></i>
                 </a>
               </td>
             </tr>
@@ -455,13 +441,6 @@
               <div class="form-group">
                 <label for="año_calendario">Año</label>
                 <select id="año_calendario" name="año_calendario" class="form-control form-control-sm"></select>
-              </div>
-              <div class="form-group">
-                <label for="activo">Activo</label>
-                <select class="form-control" id="activo" name="activo" required>
-                  <option value="1">Sí</option>
-                  <option value="0">No</option>
-                </select>
               </div>
             </form>
           </div>
@@ -622,7 +601,7 @@
                     data-target="#modalEliminarMateria"
                     data-id_materia="{{ materia[0] }}"
                     >
-                  <i class="fas fa-trash-alt fa-lg" id="DeleteIcon"></i>
+                    <i class="fas fa-trash-alt fa-lg" id="DeleteIcon"></i>
                 </a>
               </td>
             </tr>
@@ -792,6 +771,21 @@
       select.appendChild(option);
     }
   </script>
+  <script>
+    const selectEditarCurso = document.getElementById("año");
+    const añoActualAgregarCarrera = new Date().getFullYear();
+    const cantidadAniosAgregar = 10; // 🔢 Cuántos años hacia adelante querés mostrar
+
+    // Limpiar opciones previas por si el modal se abre varias veces
+    selectEditarCurso.innerHTML = "";
+
+    for (let i = añoActualAgregarCarrera; i <= añoActualAgregarCarrera + cantidadAniosAgregar; i++) {
+      const option = document.createElement("option");
+      option.value = i;
+      option.textContent = i;
+      selectEditarCurso.appendChild(option);
+    }
+  </script>
   <!-- Script editar carrera -->
   <script>
     $('#modalEditarCarrera').on('show.bs.modal', function (event) {
@@ -804,6 +798,7 @@
       var tipo = button.data('tipo');
       var año = button.data('año');
       var fecha = button.data('fecha');
+      var ley = button.data('ley');
       var activo = button.data('activo');
 
       // Pasar datos al modal
@@ -814,19 +809,29 @@
       modal.find('#editar-tipo').val(tipo);
       modal.find('#editar-año').val(año);
       modal.find('#editar-fecha').val(fecha);
+      modal.find('#editar-ley').val(ley);
       modal.find('#editar-activo').val(activo);
     });
   </script>
   <script>
-    const selectEditar = document.getElementById("editar-año");
-    const añoActualEditar = new Date().getFullYear();
-    for (let i = añoActualEditar; i >= 1900; i--) {
-      const option = document.createElement("option");
-      option.value = i;
-      option.text = i;
-      selectEditar.appendChild(option);
-    }
+    document.addEventListener("DOMContentLoaded", () => {
+      const selectEditarCurso = document.getElementById("editar-año");
+      if (!selectEditarCurso) return; // Evita errores si no existe todavía
+      
+      const añoActualCarrera = new Date().getFullYear();
+      const cantidadAniosCarrera = 10;
+
+      selectEditarCurso.innerHTML = "";
+
+      for (let i = añoActualCarrera; i <= añoActualCarrera + cantidadAniosCarrera; i++) {
+        const option = document.createElement("option");
+        option.value = i;
+        option.textContent = i;
+        selectEditarCurso.appendChild(option);
+      }
+    });
   </script>
+
   <!-- Script eliminar carrera -->
   <script>
     $('#modalEliminarCarrera').on('show.bs.modal', function (event) {
@@ -846,10 +851,15 @@
   <script>
     const selectCurso = document.getElementById("año_calendario");
     const añoActualCurso = new Date().getFullYear();
-    for (let i = añoActualCurso; i >= 1900; i--) {
+    const cantidadAniosCurso = 10; // 🔢 cantidad de años hacia adelante
+
+    // Limpiar el select por si se recarga dinámicamente
+    selectCurso.innerHTML = "";
+
+    for (let i = añoActualCurso; i <= añoActualCurso + cantidadAniosCurso; i++) {
       const option = document.createElement("option");
       option.value = i;
-      option.text = i;
+      option.textContent = i;
       selectCurso.appendChild(option);
     }
   </script>
@@ -881,14 +891,22 @@
     });
   </script>
   <script>
-    const selectEditarCurso = document.getElementById("editar-año_calendario");
-    const añoActualEditarCurso = new Date().getFullYear();
-    for (let i = añoActualEditarCurso; i >= 1900; i--) {
-      const option = document.createElement("option");
-      option.value = i;
-      option.text = i;
-      selectEditarCurso.appendChild(option);
-    }
+    document.addEventListener("DOMContentLoaded", () => {
+      const selectEditarCurso = document.getElementById("editar-año_calendario");
+      if (!selectEditarCurso) return; // Evita errores si no existe todavía
+      
+      const añoActualCurso = new Date().getFullYear();
+      const cantidadAniosCurso = 10;
+
+      selectEditarCurso.innerHTML = "";
+
+      for (let i = añoActualCurso; i <= añoActualCurso + cantidadAniosCurso; i++) {
+        const option = document.createElement("option");
+        option.value = i;
+        option.textContent = i;
+        selectEditarCurso.appendChild(option);
+      }
+    });
   </script>
   <!-- Script eliminar curso -->
   <script>

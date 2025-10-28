@@ -5,6 +5,7 @@ from utils.db_utils import ejecutar_sql
 from functools import wraps
 from flask import jsonify
 from datetime import date, datetime, timedelta
+import re
 # Aca importamos todo lo que vayamos a usar, en el documento de requerimientos estan todas las librerias que se usan
 # en la consola usen el metodo pip para instalar cosas como flask
 
@@ -624,42 +625,49 @@ def agregar_carrera():
         return redirect(url_for('login'))
     
     if request.method == "POST":
-        nombre = request.form.get("nombre")
-        descripcion = request.form.get("descripcion")
-        tipo = request.form.get("tipo")
-        año = request.form.get("año")
-        fecha = date.today().strftime("%Y-%m-%d")
-        ley_file = request.files.get("ley")
-        ley_filename = None
+        nombre = request.form.get("nombre", "").strip()
+        descripcion = request.form.get("descripcion", "").strip()
+        tipo = request.form.get("tipo", "").strip()
+        año = request.form.get("año", "").strip()
+        ley_file = request.form.get("ley", "").strip()
+        fecha = date.today().strftime("%Y-%m-%d")  # Se genera automáticamente
 
-        # 🔍 Validaciones
+        # --- VALIDACIONES ---
         if not nombre:
             flash("El nombre es obligatorio", "error")
             return redirect(url_for("agregar_carrera"))
+
+        # ✅ Solo letras y espacios ENTRE palabras (no al inicio/final ni dobles)
+        if not re.match(r'^[A-Za-zÁÉÍÓÚáéíóúÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÑñ]+)*$', nombre):
+            flash("El nombre solo puede contener letras y un solo espacio entre palabras.", "error")
+            return redirect(url_for("agregar_carrera"))
+
         if not descripcion:
             flash("La descripción es obligatoria", "error")
             return redirect(url_for("agregar_carrera"))
+
         if not año:
             flash("El año es obligatorio", "error")
             return redirect(url_for("agregar_carrera"))
+
         if not tipo:
             flash("El tipo es obligatorio", "error")
             return redirect(url_for("agregar_carrera"))
 
-        # Insertar en la base de datos
+        # --- INSERTAR EN LA BD ---
         query = """
             INSERT INTO carreras (nombre, descripcion, tipo, año, ley, fecha, activo)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
-        values = (nombre, descripcion, tipo, año, ley_filename, fecha, 1)
+        values = (nombre, descripcion, tipo, año, ley_file, fecha, 1)
         ejecutar_sql(query, values)
-        # GET → traemos todas las carreras
-        query = "SELECT * FROM carreras ORDER BY id_carrera DESC"
-        carreras = ejecutar_sql(query)  # fetch=True para obtener resultados
 
+        flash("Carrera agregada correctamente", "success")
+        return redirect(url_for("carreras", table="carreras"))
+
+    # Si el método es GET, redirigir o renderizar la vista según tu lógica
     return redirect(url_for("carreras", table="carreras"))
- 
-# Editar carrera
+
 @app.route("/editar_carrera", methods=["POST"])
 def editar_carrera():
     id_carrera = request.form.get("id_carrera")
@@ -668,36 +676,86 @@ def editar_carrera():
     tipo = request.form.get("tipo")
     año = request.form.get("año")
     fecha = date.today().strftime("%Y-%m-%d")
-    activo = request.form.get("activo", 1)
+    ley_file = request.form.get("ley")
+    activo = int(request.form.get("activo", 1))  # lo convertimos a entero
 
-    # 🔍 Validaciones
+    # --- Validaciones básicas ---
     if not id_carrera:
-        flash("No se encontro la carrera seleccionada", "error")
-        return redirect(url_for("agregar_carrera"))
+        flash("No se encontró la carrera seleccionada", "error")
+        return redirect(url_for("carreras"))
+    
+    # --- VALIDACIONES ---
     if not nombre:
         flash("El nombre es obligatorio", "error")
-        return redirect(url_for("agregar_carrera"))
+        return redirect(url_for("carreras"))
+
+    # ✅ Solo letras y espacios ENTRE palabras (no al inicio/final ni dobles)
+    if not re.match(r'^[A-Za-zÁÉÍÓÚáéíóúÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÑñ]+)*$', nombre):
+        flash("El nombre solo puede contener letras y un solo espacio entre palabras.", "error")
+        return redirect(url_for("carreras"))
+
     if not descripcion:
         flash("La descripción es obligatoria", "error")
-        return redirect(url_for("agregar_carrera"))
+        return redirect(url_for("carreras"))
+
     if not año:
         flash("El año es obligatorio", "error")
-        return redirect(url_for("agregar_carrera"))
+        return redirect(url_for("carreras"))
+
     if not tipo:
         flash("El tipo es obligatorio", "error")
-        return redirect(url_for("agregar_carrera"))
+        return redirect(url_for("carreras"))
 
-
-    query = """
+    # --- Actualizar carrera ---
+    query_carrera = """
         UPDATE carreras
-        SET nombre=%s, descripcion=%s, tipo=%s, año=%s, fecha=%s, activo=%s
+        SET nombre=%s, descripcion=%s, tipo=%s, año=%s, fecha=%s, activo=%s, ley=%s
         WHERE id_carrera=%s
     """
-    values = [nombre, descripcion, tipo, año, fecha, activo, id_carrera]
-    print("Editando carrera:", id_carrera, nombre, descripcion, tipo, año, fecha, activo)
-    ejecutar_sql(query, values)
+    values_carrera = [nombre, descripcion, tipo, año, fecha, activo, ley_file, id_carrera]
+    ejecutar_sql(query_carrera, values_carrera)
 
+    # --- Si se desactiva la carrera, desactivar cursos y materias ---
+    if activo == 0:
+        # Desactivar los cursos de esa carrera
+        query_cursos = """
+            UPDATE cursos
+            SET activo = 0
+            WHERE id_carrera = %s
+        """
+        ejecutar_sql(query_cursos, [id_carrera])
+
+        # Desactivar las materias de esos cursos
+        query_materias = """
+            UPDATE materias
+            SET activo = 0
+            WHERE id_curso IN (
+                SELECT id_curso FROM cursos WHERE id_carrera = %s
+            )
+        """
+        ejecutar_sql(query_materias, [id_carrera])
+
+    # --- Si se reactiva la carrera, también reactivar todo ---
+    elif activo == 1:
+        query_cursos = """
+            UPDATE cursos
+            SET activo = 1
+            WHERE id_carrera = %s
+        """
+        ejecutar_sql(query_cursos, [id_carrera])
+
+        query_materias = """
+            UPDATE materias
+            SET activo = 1
+            WHERE id_curso IN (
+                SELECT id_curso FROM cursos WHERE id_carrera = %s
+            )
+        """
+        ejecutar_sql(query_materias, [id_carrera])
+
+    flash("Carrera actualizada correctamente", "success")
     return redirect(url_for("carreras"))
+
 
 # Eliminar carrera
 @app.route("/eliminar_carrera", methods=["POST"])
@@ -708,6 +766,7 @@ def eliminar_carrera():
     values = [id_carrera]
     print("Eliminando carrera:", id_carrera)
     ejecutar_sql(query, values)
+    flash("Carrera eliminada correctamente.", "error")
     return redirect(url_for("carreras"))
 
 # Listado de cursos
@@ -715,7 +774,8 @@ def eliminar_carrera():
 def cursos():
     page = int(request.args.get("page", 1))
     nombre_busqueda = request.args.get("nombre", "")
-    estado_activo = request.args.get("activo", "todos")
+    estado_activo = request.args.get("activo", "activos")
+    
 
     # --- Traer cursos ---
     query = """
@@ -772,28 +832,64 @@ def agregar_curso():
     ejecutar_sql(query, values)
 
     # 🔁 Redirige a la vista de cursos con table='cursos'
+    flash("Curso agregado correctamente.", "success")
     return redirect(url_for("cursos"))
 
 # Editar curso
-@app.route("/editar_curso", methods=["GET", "POST"])
+@app.route("/editar_curso", methods=["POST"])
 def editar_curso():
     if 'nombre' not in session:
         return redirect(url_for('login'))
+
     id_curso = request.form.get("id_curso")
     id_carrera = request.form.get("id_carrera")
     nombre = request.form.get("nombre")
     año_calendario = request.form.get("año_calendario")
-    activo = request.form.get("activo", 1)
+    activo = int(request.form.get("activo", 1))  # Convertir a entero
 
+    # --- Validaciones básicas ---
+    if not id_curso:
+        flash("No se encontró el curso seleccionado", "error")
+        return redirect(url_for("cursos"))
+    if not nombre:
+        flash("El nombre es obligatorio", "error")
+        return redirect(url_for("cursos"))
+    if not id_carrera:
+        flash("Debe asociar una carrera", "error")
+        return redirect(url_for("cursos"))
+
+    # --- Validar si la carrera asociada está activa ---
+    query_carrera = "SELECT activo FROM carreras WHERE id_carrera = %s"
+    carrera = ejecutar_sql(query_carrera, [id_carrera])
+
+    if not carrera:
+        flash("La carrera asociada no existe.", "error")
+        return redirect(url_for("cursos"))
+
+    carrera_activa = carrera[0]["activo"] if isinstance(carrera[0], dict) else carrera[0][0]
+
+    if activo == 1 and carrera_activa == 0:
+        flash("No se puede activar un curso si la carrera asociada está desactivada. Active la carrera primero", "error")
+        return redirect(url_for("cursos"))
+
+    # --- Actualizar curso ---
     query = """
         UPDATE cursos
         SET id_carrera=%s, nombre=%s, año_calendario=%s, activo=%s
         WHERE id_curso=%s
     """
     values = [id_carrera, nombre, año_calendario, activo, id_curso]
-    print("Editando curso:", id_carrera, nombre, año_calendario, activo)
     ejecutar_sql(query, values)
 
+    # --- Desactivar / Reactivar materias asociadas ---
+    if activo == 0:
+        query_materias = "UPDATE materias SET activo = 0 WHERE id_curso = %s"
+        ejecutar_sql(query_materias, [id_curso])
+    elif activo == 1:
+        query_materias = "UPDATE materias SET activo = 1 WHERE id_curso = %s"
+        ejecutar_sql(query_materias, [id_curso])
+
+    flash("Curso actualizado correctamente.", "success")
     return redirect(url_for("cursos"))
 
 # Eliminar curso
@@ -805,6 +901,7 @@ def eliminar_curso():
     values = [id_curso]
     print("Eliminando curso:", id_curso)
     ejecutar_sql(query, values)
+    flash("Curso eliminado correctamente.", "error")
     return redirect(url_for("cursos"))
 
 # Listado de materias
@@ -812,7 +909,7 @@ def eliminar_curso():
 def materias():
     page = int(request.args.get("page", 1))
     nombre_busqueda = request.args.get("nombre", "")
-    estado_activo = request.args.get("activo", "todos")
+    estado_activo = request.args.get("activo", "activos")
 
     # --- Traer materias ---
     query = """
@@ -883,6 +980,7 @@ def agregar_materia():
     ejecutar_sql(query, values)
 
     # 🔁 Redirige a la vista de cursos con table='cursos'
+    flash("Materia agregada correctamente.", "success")
     return redirect(url_for("materias"))
 
 # Editar materia
@@ -895,8 +993,41 @@ def editar_materia():
     id_curso = request.form.get("id_curso")
     nombre = request.form.get("nombre")
     carga_horaria = request.form.get("carga_horaria")
-    activo = request.form.get("activo", 1)
+    activo = int(request.form.get("activo", 1))  # Convertir a entero
 
+    # --- Validaciones básicas ---
+    if not id_materia:
+        flash("No se encontró la materia seleccionada", "error")
+        return redirect(url_for("materias"))
+    if not nombre:
+        flash("El nombre es obligatorio", "error")
+        return redirect(url_for("materias"))
+    if not id_curso:
+        flash("Debe asociar un curso", "error")
+        return redirect(url_for("materias"))
+
+    # --- Validar estado del curso ---
+    query_curso = "SELECT activo, id_carrera FROM cursos WHERE id_curso = %s"
+    curso = ejecutar_sql(query_curso, [id_curso])
+
+    if not curso:
+        flash("El curso asociado no existe.", "error")
+        return redirect(url_for("materias"))
+
+    curso_activo = curso[0]["activo"] if isinstance(curso[0], dict) else curso[0][0]
+    id_carrera = curso[0]["id_carrera"] if isinstance(curso[0], dict) else curso[0][1]
+
+    # --- Validar estado de la carrera asociada al curso ---
+    query_carrera = "SELECT activo FROM carreras WHERE id_carrera = %s"
+    carrera = ejecutar_sql(query_carrera, [id_carrera])
+    carrera_activa = carrera[0]["activo"] if carrera and isinstance(carrera[0], dict) else (carrera[0][0] if carrera else 0)
+
+    # 🚫 Si intenta activar la materia pero el curso o la carrera están inactivos
+    if activo == 1 and (curso_activo == 0 or carrera_activa == 0):
+        flash("No se puede activar una materia si el curso o la carrera asociada están desactivados.", "error")
+        return redirect(url_for("materias"))
+
+    # --- Actualizar materia ---
     query = """
         UPDATE materias
         SET id_curso = %s,
@@ -906,10 +1037,9 @@ def editar_materia():
         WHERE id_materia = %s
     """
     values = [id_curso, nombre, carga_horaria, activo, id_materia]
-
-    print("🛠️ Editando materia:", values)
     ejecutar_sql(query, values)
 
+    flash("Materia actualizada correctamente.", "success")
     return redirect(url_for("materias"))
 
 # Eliminar materia
@@ -924,6 +1054,7 @@ def eliminar_materia():
     values = [id_materia]
     print("Eliminando materia:", id_materia)
     ejecutar_sql(query, values)
+    flash("Materia eliminada correctamente.", "error")
     return redirect(url_for("materias"))
 
 
