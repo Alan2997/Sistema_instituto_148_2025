@@ -183,7 +183,7 @@
       {% if messages %}
         <script>
           {% for message in messages %}
-            alert("{{ message }}");
+            alert("{{ message|safe}}");
           {% endfor %}
         </script>
       {% endif %}
@@ -282,6 +282,7 @@
                   <label for="editar-descripcion">Descripción</label>
                   <input type="text" class="form-control form-control-sm" id="editar-descripcion" name="descripcion">
                 </div>
+
                 <div class="col-md-4 form-group">
                   <label for="editar-tipo">Tipo</label>
                   <select class="form-control form-control-sm" name="tipo" id="editar-tipo">
@@ -290,24 +291,48 @@
                     <option value="Profesorado">Profesorado</option>
                   </select>
                 </div>
+
                 <div class="col-md-4 form-group">
                   <label for="editar-año">Año</label>
                   <select id="editar-año" name="año" class="form-control form-control-sm"></select>
                 </div>
+
                 <div class="col-md-4 form-group">
                   <label for="editar-fecha">Fecha creación</label>
                   <input type="text" class="form-control form-control-sm" id="editar-fecha" name="fecha" disabled>
                 </div>
+
                 <div class="col-md-6 form-group">
                   <label for="editar-ley">Ley</label>
                   <input type="text" class="form-control form-control-sm" id="editar-ley" name="ley">
                 </div>
+
                 <div class="col-md-6 form-group">
                   <label>Activo</label>
                   <select class="form-control form-control-sm" name="activo" id="editar-activo">
                     <option value="1">Sí</option>
                     <option value="0">No</option>
                   </select>
+                </div>
+
+                <!-- Contenedor oculto de cursos -->
+                <div id="editar-contenedor-cursos-auto" class="mt-3" style="display: none; width: 100%;">
+                  <label class="font-weight-bold text-primary">Cursos que se crearán automáticamente:</label>
+                  <div class="table-responsive-sm">
+                    <table class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th>Nombre del curso</th>
+                          <th>Año calendario</th>
+                        </tr>
+                      </thead>
+                      <tbody id="editar-tabla-cursos-auto">
+                        <tr>
+                          <td colspan="2" class="text-muted text-center">Seleccione un tipo para ver los cursos</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -320,6 +345,7 @@
         </div>
       </div>
     </div>
+
 
     <!-- Modal Eliminar Carrera -->
     <div class="modal fade" id="modalEliminarCarrera" tabindex="-1" role="dialog" aria-labelledby="modalEliminarCarreraLabel" aria-hidden="true">
@@ -785,52 +811,58 @@
       document.getElementById(table).style.display = "block";
     });
   </script>
-  <!-- Script para mostrar los cursos automáticamente -->
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const tipoSelect = document.getElementById("tipo");
-      const contenedorCursos = document.getElementById("contenedor-cursos-auto");
-      const tablaCursos = document.getElementById("tabla-cursos-auto");
-      const selectAnio = document.getElementById("año"); // ya existe en tu modal
+    // === FUNCIONES COMPARTIDAS PARA AMBOS MODALES ===
 
-      tipoSelect.addEventListener("change", () => {
-        const tipo = tipoSelect.value;
-        tablaCursos.innerHTML = ""; // limpiar
-        contenedorCursos.style.display = "none"; // ocultar por defecto
+    function actualizarTablaCursosAuto(tipo, tablaId, contenedorId, añoSelectId) {
+      const tabla = document.getElementById(tablaId);
+      const contenedor = document.getElementById(contenedorId);
+      const añoSelect = document.getElementById(añoSelectId);
+      const añoSeleccionado = añoSelect ? añoSelect.value : "";
 
-        if (!tipo) return; // si no seleccionó nada, no mostrar
+      let cursos = [];
 
-        let cursos = [];
-        if (tipo === "Tecnicatura") cursos = ["Primero", "Segundo", "Tercero"];
-        if (tipo === "Profesorado") cursos = ["Primero", "Segundo", "Tercero", "Cuarto"];
-
-        // Mostrar contenedor
-        contenedorCursos.style.display = "block";
-
-        // Obtener año seleccionado (si hay)
-        const anio = selectAnio?.value || "—";
-
-        // Crear filas
-        cursos.forEach((nombre, index) => {
-          const fila = document.createElement("tr");
-          fila.innerHTML = `
-            <td><span class="badge badge-success px-3 py-2">${nombre}</span></td>
-            <td>${anio}</td>
-          `;
-          tablaCursos.appendChild(fila);
-        });
-      });
-
-      // 🔁 Si cambia el año, actualizar la columna de año en tiempo real
-      const selectAnios = document.getElementById("año");
-      if (selectAnio) {
-        selectAnios.addEventListener("change", () => {
-          const anio = selectAnios.value;
-          document.querySelectorAll("#tabla-cursos-auto td:nth-child(2)").forEach(td => {
-            td.textContent = anio;
-          });
-        });
+      if (tipo === "Tecnicatura") {
+        cursos = ["Primero", "Segundo", "Tercero"];
+      } else if (tipo === "Profesorado") {
+        cursos = ["Primero", "Segundo", "Tercero", "Cuarto"];
       }
+
+      if (tipo) {
+        contenedor.style.display = "block";
+        tabla.innerHTML = cursos.map(curso =>
+          `<tr>
+            <td>${curso}</td>
+            <td>${añoSeleccionado || "—"}</td>
+          </tr>`
+        ).join("");
+      } else {
+        contenedor.style.display = "none";
+        tabla.innerHTML = `
+          <tr>
+            <td colspan="2" class="text-muted text-center">
+              Seleccione un tipo para ver los cursos
+            </td>
+          </tr>`;
+      }
+    }
+
+    // === EVENTOS PARA MODAL AGREGAR ===
+    document.getElementById("tipo")?.addEventListener("change", function () {
+      actualizarTablaCursosAuto(this.value, "tabla-cursos-auto", "contenedor-cursos-auto", "año");
+    });
+    document.getElementById("año")?.addEventListener("change", function () {
+      const tipo = document.getElementById("tipo").value;
+      actualizarTablaCursosAuto(tipo, "tabla-cursos-auto", "contenedor-cursos-auto", "año");
+    });
+
+    // === EVENTOS PARA MODAL EDITAR ===
+    document.getElementById("editar-tipo")?.addEventListener("change", function () {
+      actualizarTablaCursosAuto(this.value, "editar-tabla-cursos-auto", "editar-contenedor-cursos-auto", "editar-año");
+    });
+    document.getElementById("editar-año")?.addEventListener("change", function () {
+      const tipo = document.getElementById("editar-tipo").value;
+      actualizarTablaCursosAuto(tipo, "editar-tabla-cursos-auto", "editar-contenedor-cursos-auto", "editar-año");
     });
   </script>
 

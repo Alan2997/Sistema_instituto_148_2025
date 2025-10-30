@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Materias por Curso - Sistema de Gestión Académica</title>
+
+  <!-- Fuentes y Bootstrap -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+  <script>
+    function showTab(tabName) {
+      const tabs = document.querySelectorAll('.tab-content');
+      tabs.forEach(tab => tab.style.display = 'none');
+
+      const activeTab = document.getElementById(tabName);
+      if (activeTab) {
+        activeTab.style.display = 'block';
+      }
+
+      const tabButtons = document.querySelectorAll('.tabs button');
+      tabButtons.forEach(button => button.classList.remove('active'));
+      document.getElementById(tabName + '-btn').classList.add('active');
+    }
+
+    window.onload = function() {
+      const table = '{{ table }}';  
+      if (table === 'carreras_inactivas') {
+        showTab('carreras_inactivas');
+      } else {
+        showTab('carreras');  // por defecto mostramos carreras
+      }
+    };
+  </script>
+
+  <style>
+    html {
+      margin-left: 15%;
+      margin-top: 10%;
+      height: 60%;
+      align-items: center;
+    }
+    html, body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    body {
+      width: 100%;
+    }
+    #boton-guardar {
+      background-color: #518ec3;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  {% include 'navbar.html' %}
+  <div class="container">
+    {% include 'nav_carreras.html' %}
+  </div>
+
+  <div class="container mt-4">
+    <h5 class="text-primary mb-3">
+      Materias del curso: <strong>{{ curso[1] }}</strong>  
+      <small class="text-muted">(Carrera: {{ carrera[1] }})</small>
+    </h5>
+
+    <!-- Barra superior -->
+    <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
+      <!-- Botón volver -->
+      <a href="{{ url_for('cursos_por_carrera', id_carrera=carrera[0]) }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Volver a Cursos
+      </a>
+
+      <!-- Botón agregar materia (abre modal) -->
+      <a href="#" class="btn btn-success" data-toggle="modal" data-target="#modalAgregarMateria">
+        <i class="fas fa-plus"></i> Agregar Materia
+      </a>
+    </div>
+
+    <!-- Tabla de materias -->
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>N°</th>
+          <th>Nombre</th>
+          <th>Carga horaria</th>
+          <th>Activo</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if materias %}
+          {% for materia in materias %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ materia[1] }}</td>
+            <td style="text-align: start;">{{ materia[2] }}hs</td>
+            <td>{{ 'Sí' if materia[3] else 'No' }}</td>
+            <!-- Botón Editar -->
+            <td class="d-flex gap-2">
+              <!-- Botón Editar -->
+              <a href="#"
+                class="btn btn-sm btn-outline-primary mr-2"
+                data-toggle="modal"
+                data-target="#modalEditarMateria"
+                data-id_materia="{{ materia[0] }}"
+                data-nombre="{{ materia[1] }}"
+                data-horas="{{ materia[2] }}"
+                data-activo="{{ materia[3] }}"
+                title="Editar materia">
+                <i class="fas fa-edit"></i>
+              </a>
+
+              <!-- Botón Eliminar -->
+              <a href="#"
+                class="btn btn-sm btn-outline-danger"
+                data-toggle="modal"
+                data-target="#modalEliminarMateria"
+                data-id_materia="{{ materia[0] }}"
+                data-nombre="{{ materia[1] }}"
+                title="Eliminar materia">
+                <i class="fas fa-trash-alt"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+        <tr>
+          <td colspan="5" class="text-center text-muted">No hay materias registradas</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <script>
+        {% for message in messages %}
+        alert("{{ message|safe }}");
+        {% endfor %}
+    </script>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Modal Agregar Materia -->
+  <div class="modal fade" id="modalAgregarMateria" tabindex="-1" role="dialog" aria-labelledby="modalAgregarMateriaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title text-primary" id="modalAgregarMateriaLabel">Nueva Materia</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <form method="POST" action="{{ url_for('agregar_materia') }}">
+          <div class="modal-body">
+            <input type="hidden" name="id_curso" value="{{ curso[0] }}">
+            
+            <div class="form-row">
+              <div class="col-md-6 form-group">
+                <label for="nombre">Nombre</label>
+                <input type="text" class="form-control form-control-sm" id="nombre" name="nombre" required>
+              </div>
+              <div class="col-md-6 form-group">
+                <label for="carga_horaria">Carga horaria</label>
+                <input type="number" class="form-control form-control-sm" id="carga_horaria" name="carga_horaria" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-success">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editar Materia -->
+  <div class="modal fade" id="modalEditarMateria" tabindex="-1" role="dialog" aria-labelledby="modalEditarMateriaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title text-primary" id="modalEditarMateriaLabel">Editar Materia</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <form method="POST" action="{{ url_for('editar_materia') }}">
+          <div class="modal-body">
+            <input type="hidden" name="id_materia" id="editar-id_materia">
+            <input type="hidden" name="id_curso" value="{{ curso[0] }}">
+
+            <div class="form-row">
+              <div class="col-md-6 form-group">
+                <label for="editar-nombre">Nombre</label>
+                <input type="text" class="form-control form-control-sm" id="editar-nombre" name="nombre" required>
+              </div>
+              <div class="col-md-6 form-group">
+                <label for="editar-carga_horaria">Carga horaria</label>
+                <input type="number" class="form-control form-control-sm" id="editar-carga_horaria" name="carga_horaria" required>
+              </div>
+              <div class="col-md-6 form-group">
+                <label>Activo</label>
+                <select class="form-control form-control-sm" name="activo" id="editar-activo">
+                  <option value="1">Sí</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Eliminar Materia -->
+  <div class="modal fade" id="modalEliminarMateria" tabindex="-1" role="dialog" aria-labelledby="modalEliminarMateriaLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title text-danger" id="modalEliminarMateriaLabel">Eliminar Materia</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <form method="POST" action="{{ url_for('eliminar_materia') }}">
+          <div class="modal-body">
+            <input type="hidden" name="id_materia" id="eliminar-id_materia">
+            <input type="hidden" name="id_curso" value="{{ curso[0] }}">
+            <p class="text-center mb-0">
+              ¿Seguro que desea eliminar esta materia?<br>
+              <strong id="eliminar-nombre" class="text-danger"></strong>
+            </p>
+          </div>
+
+          <div class="modal-footer justify-content-center">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-danger">Eliminar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+<!-- Scripts para completar los modales -->
+<script>
+  // Editar Materia
+  $('#modalEditarMateria').on('show.bs.modal', function (event) {
+    var button = $(event.relatedTarget);
+    var id_materia = button.data('id_materia');
+    var nombre = button.data('nombre');
+    var horas = button.data('horas');
+    var activo = button.data('activo');
+
+    var modal = $(this);
+    modal.find('#editar-id_materia').val(id_materia);
+    modal.find('#editar-nombre').val(nombre);
+    modal.find('#editar-carga_horaria').val(horas);
+    modal.find('#editar-activo').val(activo);
+  });
+
+  // Eliminar Materia
+  $('#modalEliminarMateria').on('show.bs.modal', function (event) {
+    var button = $(event.relatedTarget);
+    var id_materia = button.data('id_materia');
+    var nombre = button.data('nombre');
+    var modal = $(this);
+    modal.find('#eliminar-id_materia').val(id_materia);
+    modal.find('#eliminar-nombre').text(nombre);
+  });
+</script>
+
+</body>
+
+</html>
