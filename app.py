@@ -57,7 +57,8 @@ def login():
         
         # Validar el usuario contra la base de datos
         query = "SELECT id_usuario, nombre FROM usuarios WHERE dni = %s AND pass = %s AND activo = 1"
-        result = ejecutar_sql(query, (dni, password))
+        values = dni, password
+        result = ejecutar_sql(query, values)
         
         if result: #meter en session (donde se guardan los datos)
             session['dni'] = dni
@@ -577,6 +578,65 @@ def editar_ingresante(id_usuario):
         alumno_turno=alumno_turno
     )
 
+# Cursos por carrera
+@app.route("/carreras/<int:id_carrera>/cursos")
+def cursos_por_carrera(id_carrera):
+    # Traer datos de la carrera
+    query_carrera = """
+        SELECT id_carrera, nombre, descripcion, tipo, año, ley, fecha, activo
+        FROM carreras
+        WHERE id_carrera = %s
+    """
+    # 🚨 Acá traés solo una fila
+    carrera = ejecutar_sql(query_carrera, (id_carrera,))
+
+    # Si la función devuelve lista, tomamos la primera
+    if carrera and isinstance(carrera, list):
+        carrera = carrera[0]
+
+    # Traer los cursos de esa carrera
+    query_cursos = """
+        SELECT id_curso, nombre, año_calendario, activo
+        FROM cursos
+        WHERE id_carrera = %s
+        ORDER BY id_curso DESC
+    """
+    cursos = ejecutar_sql(query_cursos, (id_carrera,)) or []
+
+    return render_template(
+        "cursos_por_carrera.html",
+        carrera=carrera,
+        cursos=cursos
+    )
+
+# Agregar curso (versión completa y estable)
+@app.route("/carreras/<int:id_carrera>/cursos/nuevo", methods=["POST"])
+def crear_curso_por_carrera(id_carrera):
+    if 'nombre' not in session:
+        return redirect(url_for('login'))
+
+    nombre = request.form.get("nombre")
+    año_calendario = request.form.get("año_calendario")
+    activo = 1  # Siempre activo por defecto
+
+    # Validación básica
+    if not nombre or not año_calendario:
+        flash("Faltan datos obligatorios para crear el curso.", "danger")
+        return redirect(f"/carreras/{id_carrera}/cursos")
+
+    # Inserción segura
+    query_insert = """
+        INSERT INTO cursos (id_carrera, nombre, año_calendario, activo)
+        VALUES (%s, %s, %s, %s)
+    """
+    values = (id_carrera, nombre, año_calendario, activo)
+    ejecutar_sql(query_insert, values)
+
+    flash("Curso agregado correctamente.", "success")
+    return redirect(f"/carreras/{id_carrera}/cursos")
+
+
+
 # Listado de carreras
 @app.route("/carreras")
 def carreras():
@@ -618,55 +678,73 @@ def carreras():
         estado_activo=estado_activo
     )
 
-# Agregar carrera
-@app.route("/agregar_carrera", methods=["GET", "POST"])
+# Agregar carrera con creación automática de cursos según tipo
+@app.route("/agregar_carrera", methods=["POST"])
 def agregar_carrera():
-    if 'nombre' not in session:  # si tu sistema tiene login
+    if 'nombre' not in session:
         return redirect(url_for('login'))
-    
-    if request.method == "POST":
-        nombre = request.form.get("nombre", "").strip()
-        descripcion = request.form.get("descripcion", "").strip()
-        tipo = request.form.get("tipo", "").strip()
-        año = request.form.get("año", "").strip()
-        ley_file = request.form.get("ley", "").strip()
-        fecha = date.today().strftime("%Y-%m-%d")  # Se genera automáticamente
 
-        # --- VALIDACIONES ---
-        if not nombre:
-            flash("El nombre es obligatorio", "error")
-            return redirect(url_for("agregar_carrera"))
+    nombre = request.form.get("nombre", "").strip()
+    descripcion = request.form.get("descripcion", "").strip()
+    tipo = request.form.get("tipo", "").strip()
+    año = request.form.get("año", "").strip()
+    ley_file = request.form.get("ley", "").strip()
+    fecha = date.today().strftime("%Y-%m-%d")
 
-        # ✅ Solo letras y espacios ENTRE palabras (no al inicio/final ni dobles)
-        if not re.match(r'^[A-Za-zÁÉÍÓÚáéíóúÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÑñ]+)*$', nombre):
-            flash("El nombre solo puede contener letras y un solo espacio entre palabras.", "error")
-            return redirect(url_for("agregar_carrera"))
+    # --- VALIDACIONES ---
+    if not nombre or not descripcion or not tipo or not año:
+        flash("Todos los campos obligatorios deben completarse", "danger")
+        return redirect(url_for("carreras"))
 
-        if not descripcion:
-            flash("La descripción es obligatoria", "error")
-            return redirect(url_for("agregar_carrera"))
+    # --- INSERTAR LA CARRERA ---
+    query_carrera = """
+        INSERT INTO carreras (nombre, descripcion, tipo, año, ley, fecha, activo)
+        VALUES (%s, %s, %s, %s, %s, %s, 1)
+    """
+    values = (nombre, descripcion, tipo, año, ley_file, fecha)
 
-        if not año:
-            flash("El año es obligatorio", "error")
-            return redirect(url_for("agregar_carrera"))
+    try:
+        # Ejecutamos la inserción
+        ejecutar_sql(query_carrera, values)
 
-        if not tipo:
-            flash("El tipo es obligatorio", "error")
-            return redirect(url_for("agregar_carrera"))
+        # Intentamos obtener el último ID insertado
+        result = ejecutar_sql("SELECT LAST_INSERT_ID() AS id")
+        if result and isinstance(result, list) and len(result) > 0:
+            # ✅ Algunas implementaciones devuelven una lista de tuplas
+            id_carrera = result[0][0] if isinstance(result[0], tuple) else result[0].get("id", None)
+        else:
+            id_carrera = None
+    except Exception as e:
+        flash(f"Error al crear la carrera: {e}", "danger")
+        return redirect(url_for("carreras"))
 
-        # --- INSERTAR EN LA BD ---
-        query = """
-            INSERT INTO carreras (nombre, descripcion, tipo, año, ley, fecha, activo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """
-        values = (nombre, descripcion, tipo, año, ley_file, fecha, 1)
-        ejecutar_sql(query, values)
+    if not id_carrera:
+        flash("No se pudo obtener el ID de la carrera creada.", "danger")
+        return redirect(url_for("carreras"))
 
-        flash("Carrera agregada correctamente", "success")
-        return redirect(url_for("carreras", table="carreras"))
+    # --- CREAR CURSOS AUTOMÁTICOS ---
+    cursos_a_crear = []
+    if tipo.lower() == "tecnicatura":
+        cursos_a_crear = ["Primero", "Segundo", "Tercero"]
+    elif tipo.lower() == "profesorado":
+        cursos_a_crear = ["Primero", "Segundo", "Tercero", "Cuarto"]
 
-    # Si el método es GET, redirigir o renderizar la vista según tu lógica
-    return redirect(url_for("carreras", table="carreras"))
+    try:
+        for curso_nombre in cursos_a_crear:
+            query_curso = """
+                INSERT INTO cursos (id_carrera, nombre, año_calendario, activo)
+                VALUES (%s, %s, %s, 1)
+            """
+            ejecutar_sql(query_curso, (id_carrera, curso_nombre, año))
+    except Exception as e:
+        flash(f"Error al crear los cursos automáticos: {e}", "danger")
+        return redirect(url_for("carreras"))
+
+    flash(f"Carrera '{nombre}' agregada correctamente con {len(cursos_a_crear)} curso(s).", "success")
+    return redirect(url_for("carreras"))
+
+
+
 
 @app.route("/editar_carrera", methods=["POST"])
 def editar_carrera():

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cursos por Carrera - Sistema de Gestión Académica</title>
+
+  <!-- Fuentes y Bootstrap -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+  <script>
+    function showTab(tabName) {
+      const tabs = document.querySelectorAll('.tab-content');
+      tabs.forEach(tab => tab.style.display = 'none');
+
+      const activeTab = document.getElementById(tabName);
+      if (activeTab) {
+        activeTab.style.display = 'block';
+      }
+
+      const tabButtons = document.querySelectorAll('.tabs button');
+      tabButtons.forEach(button => button.classList.remove('active'));
+      document.getElementById(tabName + '-btn').classList.add('active');
+    }
+
+    window.onload = function() {
+      const table = '{{ table }}';  
+      if (table === 'carreras_inactivas') {
+        showTab('carreras_inactivas');
+      } else {
+        showTab('carreras');  // por defecto mostramos carreras
+      }
+    };
+  </script>
+
+  <style>
+    html {
+      margin-left: 15%;
+      margin-top: 10%;
+      height: 60%;
+      align-items: center;
+    }
+    html, body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    body {
+      width: 100%;
+    }
+    #boton-guardar {
+      background-color: #518ec3;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  {% include 'navbar.html' %}
+  <div class="container">
+    {% include 'nav_carreras.html' %}
+  </div>
+
+  <div class="container mt-4">
+    <h5 class="text-primary mb-3">
+      Cursos de la carrera: <strong>{{ carrera[1] }}</strong>
+    </h5>
+
+    <!-- Barra superior -->
+    <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
+      <!-- Botón volver -->
+      <a href="{{ url_for('carreras') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Volver a Carreras
+      </a>
+
+      <!-- Botón agregar curso (abre modal) -->
+      <a href="#" class="btn btn-success" data-toggle="modal" data-target="#modalAgregarCurso">
+        <i class="fas fa-plus"></i> Agregar Curso
+      </a>
+    </div>
+
+    <!-- Tabla de cursos -->
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Año calendario</th>
+          <th>Activo</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if cursos %}
+          {% for curso in cursos %}
+          <tr>
+            <td>{{ curso[0] }}</td>
+            <td>{{ curso[1] }}</td>
+            <td>{{ curso[2] }}</td>
+            <td>{{ 'Sí' if curso[3] else 'No' }}</td>
+            <td class="d-flex gap-2">
+              <!-- Botón Editar -->
+              <a href="#"
+                class="btn btn-sm btn-outline-primary mr-2"
+                data-toggle="modal"
+                data-target="#modalEditarCurso"
+                data-id_curso="{{ curso[0] }}"
+                data-nombre="{{ curso[1] }}"
+                data-año_calendario="{{ curso[2] }}"
+                data-activo="{{ curso[3] }}"
+                data-nombre_carrera="{{ carrera[1] }}"
+                title="Editar curso">
+                <i class="fas fa-edit"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+        <tr>
+          <td colspan="5" class="text-center text-muted">No hay cursos registrados</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <script>
+        {% for message in messages %}
+        alert("{{ message }}");
+        {% endfor %}
+    </script>
+    {% endif %}
+{% endwith %}
+
+  <!-- Modal Agregar Curso -->
+  <div class="modal fade" id="modalAgregarCurso" tabindex="-1" role="dialog" aria-labelledby="modalAgregarCursoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title text-primary" id="modalAgregarCursoLabel">Nuevo Curso</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <form method="POST" action="{{ url_for('crear_curso_por_carrera', id_carrera=carrera[0]) }}">
+          <div class="modal-body">
+            <div class="form-row">
+              <div class="col-md-6 form-group">
+                <label for="nombre">Nombre</label>
+                <input type="text" class="form-control form-control-sm" id="nombre" name="nombre" required>
+              </div>
+              <div class="col-md-6 form-group">
+                <label for="año_calendario">Año calendario</label>
+                <select id="año_calendario" name="año_calendario" class="form-control form-control-sm"></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-success">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editar Curso -->
+  <div class="modal fade" id="modalEditarCurso" tabindex="-1" role="dialog" aria-labelledby="modalEditarCursoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title text-primary" id="modalEditarCursoLabel">Editar Curso</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <form method="POST" action="{{ url_for('editar_curso') }}">
+          <div class="modal-body">
+            <input type="hidden" name="id_curso" id="editar-id_curso">
+
+            <div class="form-row">
+              <div class="col-md-6 form-group">
+                <label for="editar-nombre">Nombre</label>
+                <input type="text" class="form-control form-control-sm" id="editar-nombre" name="nombre" required>
+              </div>
+              <div class="col-md-6 form-group">
+                <label for="editar-año_calendario">Año calendario</label>
+                <select id="editar-año_calendario" name="año_calendario" class="form-control form-control-sm"></select>
+              </div>
+              <div class="col-md-6 form-group">
+                <label>Activo</label>
+                <select class="form-control form-control-sm" name="activo" id="editar-activo">
+                  <option value="1">Sí</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    // Rellenar select de año para nuevo curso
+    const selectCurso = document.getElementById("año_calendario");
+    const añoActualCurso = new Date().getFullYear();
+    for (let i = añoActualCurso; i <= añoActualCurso + 10; i++) {
+      const option = document.createElement("option");
+      option.value = i;
+      option.textContent = i;
+      selectCurso.appendChild(option);
+    }
+
+    // Script para abrir modal editar curso
+    $('#modalEditarCurso').on('show.bs.modal', function (event) {
+      var button = $(event.relatedTarget);
+      var id_curso = button.data('id_curso');
+      var nombre = button.data('nombre');
+      var año_calendario = button.data('año_calendario');
+      var activo = button.data('activo');
+
+      var modal = $(this);
+      modal.find('#editar-id_curso').val(id_curso);
+      modal.find('#editar-nombre').val(nombre);
+      modal.find('#editar-año_calendario').val(año_calendario);
+      modal.find('#editar-activo').val(activo);
+    });
+
+    // Rellenar select de año para editar curso
+    document.addEventListener("DOMContentLoaded", () => {
+      const selectEditarCurso = document.getElementById("editar-año_calendario");
+      if (!selectEditarCurso) return;
+      const añoActual = new Date().getFullYear();
+      for (let i = añoActual; i <= añoActual + 10; i++) {
+        const option = document.createElement("option");
+        option.value = i;
+        option.textContent = i;
+        selectEditarCurso.appendChild(option);
+      }
+    });
+  </script>
+
+  <!-- Script para mantener coherencia con pestaña activa -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      document.getElementById("carreras").style.display = "none";
+      document.getElementById("materias").style.display = "none";
+      document.getElementById("cursos").style.display = "block";
+      document.getElementById("carreras-btn").classList.remove("active");
+      document.getElementById("materias-btn").classList.remove("active");
+      document.getElementById("cursos-btn").classList.add("active");
+    });
+  </script>
+</body>
+
+</html>
