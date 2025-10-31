@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plan de Estudio - Sistema de Gestión Académica</title>
+
+  <!-- Fuentes y Bootstrap -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+  <style>
+    body {
+      padding-top: 20px;
+      font-family: 'Roboto', sans-serif;
+    }
+    .disabled-select {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    html {
+      margin-left: 15%;
+      margin-top: 10%;
+      height: 60%;
+      align-items: center;
+    }
+    html, body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    body {
+      width: 100%;
+    }
+    #boton-guardar {
+      background-color: #518ec3;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  {% include 'navbar.html' %}
+  <div class="container">
+    {% include 'nav_carreras.html' %}
+  </div>
+
+  <div class="container mt-4">
+    <h5 class="text-primary mt-5">Plan de estudio</h5>
+
+    <!-- 🔹 Selects -->
+    <form method="GET" action="{{ url_for('plan_de_estudio') }}" id="formPlanEstudio" class="form-inline mb-4">
+      <div style="display: flex; flex-direction: column; gap: 2px; align-items: flex-start;">
+        <label for="id_carrera" class="mr-2 font-weight-bold">Carrera:</label>
+        <select name="id_carrera" id="id_carrera" class="form-control mr-3" required>
+          <option value="">Seleccione una carrera</option>
+          {% for carrera in carreras %}
+            <option value="{{ carrera[0] }}" {% if id_carrera and id_carrera|int == carrera[0] %}selected{% endif %}>{{ carrera[1] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px; align-items: flex-start;">
+        <label for="id_curso" class="mr-2 font-weight-bold">Curso:</label>
+        <select name="id_curso" id="id_curso" class="form-control mr-3 {% if not id_carrera %}disabled-select{% endif %}" {% if not id_carrera %}disabled{% endif %} required>
+          <option value="">Seleccione un curso</option>
+          {% for curso in cursos %}
+            <option value="{{ curso[0] }}" {% if id_curso and id_curso|int == curso[0] %}selected{% endif %}>{{ curso[1] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="align-self: flex-end;">Ver materias</button>
+    </form>
+
+    <!-- 🔹 Tabla -->
+    <table class="table table-striped mt-3">
+      <thead>
+        <tr>
+          <th>N°</th>
+          <th>Nombre</th>
+          <th>Carga horaria</th>
+          <th>Activo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if materias and materias|length > 0 %}
+          {% for materia in materias %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ materia[0] }}</td>
+            <td>{{ materia[1] }}</td>
+            <td>{{ 'Sí' if materia[2] else 'No' }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="4" class="text-center text-muted">
+              Seleccione una carrera y un curso para ver las materias.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 🔹 Scripts -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+    // Cuando se elige una carrera, cargar los cursos dinámicamente
+    $('#id_carrera').on('change', function() {
+      const idCarrera = $(this).val();
+      const $cursoSelect = $('#id_curso');
+
+      if (idCarrera) {
+        $cursoSelect.prop('disabled', false).removeClass('disabled-select');
+        $cursoSelect.html('<option value="">Cargando cursos...</option>');
+
+        $.getJSON(`/get_cursos_por_carrera/${idCarrera}`, function(data) {
+          if (data.length > 0) {
+            let options = '<option value="">Seleccione un curso</option>';
+            data.forEach(c => {
+              options += `<option value="${c[0]}">${c[1]}</option>`;
+            });
+            $cursoSelect.html(options);
+          } else {
+            $cursoSelect.html('<option value="">No hay cursos disponibles</option>');
+          }
+        });
+      } else {
+        $cursoSelect.prop('disabled', true).addClass('disabled-select');
+        $cursoSelect.html('<option value="">Seleccione una carrera primero</option>');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,68 +1,130 @@
 <style>
-  /* Estilo para resaltar el enlace activo */
+  /* 🔹 Estilo del enlace activo */
   #menu .nav-link.active {
-    background-color: #5DB3B7 !important; /* azul Bootstrap */
+    background-color: #5DB3B7 !important;
     color: white !important;
     font-weight: 600;
     border-radius: 6px;
   }
 
-  /* Opcional: transición suave */
+  /* 🔹 Transición suave */
   #menu .nav-link {
     transition: background-color 0.3s, color 0.3s;
   }
+
+  /* 🔹 Breadcrumb estilo jerárquico */
+  #menu .breadcrumb-nav {
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  #menu .breadcrumb-nav a {
+    color: #5DB3B7;
+    text-decoration: none;
+  }
+
+  #menu .breadcrumb-nav a:hover {
+    text-decoration: underline;
+  }
+
+  #menu .breadcrumb-separator {
+    color: #999;
+  }
 </style>
 
-<nav role="navigation" id="menu">
+<nav role="navigation" id="menu" class="mb-3">
   <ul class="nav nav-pills" id="pills-tab">
     <li class="nav-item" role="presentation">
-      <a id="carreras-btn" class="nav-link" href="javascript:void(0);" onclick="showTab('carreras')">Carreras</a>
+      <a id="carreras-btn" class="nav-link" href="{{ url_for('carreras') }}">Carreras</a>
     </li>
     <li class="nav-item" role="presentation">
-      <a id="cursos-btn" class="nav-link" href="javascript:void(0);" onclick="showTab('plan_de_estudio')">Plan de Estudio</a>
+      <a id="plan-btn" class="nav-link" href="{{ url_for('plan_de_estudio') }}">Plan de Estudio</a>
     </li>
-    <!-- <li class="nav-item" role="presentation">
-      <a id="cursos-btn" class="nav-link" href="javascript:void(0);" onclick="showTab('cursos')">Cursos</a>
-    </li>
-    <li class="nav-item" role="presentation">
-      <a id="materias-btn" class="nav-link" href="javascript:void(0);" onclick="showTab('materias')">Materias</a>
-    </li> -->
   </ul>
+
+  <!-- 🔹 Breadcrumb dinámico -->
+  <div id="breadcrumb-container" class="mt-2" style="display:none;">
+    <div class="breadcrumb-nav" id="breadcrumb-text"></div>
+  </div>
 </nav>
 
 <script>
 window.onload = function() {
   const path = window.location.pathname;
 
-  // Oculta todas las pestañas al inicio
-  document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
-
-  // Quita la clase "active" de todos los enlaces
+  // 🔹 Reset de clases activas
   document.querySelectorAll('#menu .nav-link').forEach(link => link.classList.remove('active'));
+  const breadcrumbContainer = document.getElementById('breadcrumb-container');
+  const breadcrumbText = document.getElementById('breadcrumb-text');
+  breadcrumbContainer.style.display = 'none';
+  breadcrumbText.innerHTML = '';
 
-  // Mostrar y marcar la pestaña según la URL
-  if (path.includes('carreras')) {
-    document.getElementById('carreras').style.display = 'block';
+  // --- 🟦 PLAN DE ESTUDIO ---
+  if (path.startsWith('/plan_de_estudio')) {
+    document.getElementById('plan-btn').classList.add('active');
+    breadcrumbContainer.style.display = 'block';
+    breadcrumbText.innerHTML = ``;
+  }
+
+  // --- 🟩 CURSOS POR CARRERA ---
+  else if (path.match(/^\/carreras\/\d+\/cursos/)) {
     document.getElementById('carreras-btn').classList.add('active');
-  } else if (path.includes('cursos')) {
-    document.getElementById('cursos').style.display = 'block';
-    document.getElementById('cursos-btn').classList.add('active');
-  } else if (path.includes('materias')) {
-    document.getElementById('materias').style.display = 'block';
-    document.getElementById('materias-btn').classList.add('active');
+    const match = path.match(/^\/carreras\/(\d+)\/cursos/);
+    const carreraId = match ? match[1] : null;
+
+    if (carreraId) localStorage.setItem('currentCarreraId', carreraId);
+
+    breadcrumbContainer.style.display = 'block';
+    breadcrumbText.innerHTML = `
+      <a href="{{ url_for('carreras') }}">
+        <i class="fas fa-arrow-left"></i> Carreras
+      </a>
+      <span class="breadcrumb-separator">/</span>
+      <span>Cursos</span>
+    `;
+  }
+
+  // --- 🟨 MATERIAS POR CURSO ---
+  else if (path.match(/^\/cursos\/\d+\/materias/)) {
+    document.getElementById('carreras-btn').classList.add('active');
+    const match = path.match(/^\/cursos\/(\d+)\/materias/);
+    const cursoId = match ? match[1] : null;
+    const carreraId = localStorage.getItem('currentCarreraId');
+
+    breadcrumbContainer.style.display = 'block';
+    if (carreraId) {
+      breadcrumbText.innerHTML = `
+        <a href="/carreras/${carreraId}/cursos">
+          <i class="fas fa-arrow-left"></i> Cursos
+        </a>
+        <span class="breadcrumb-separator">/</span>
+        <span>Materias</span>
+      `;
+    } else {
+      breadcrumbText.innerHTML = `
+        <a href="{{ url_for('carreras') }}">
+          <i class="fas fa-arrow-left"></i> Carreras
+        </a>
+        <span class="breadcrumb-separator">/</span>
+        <span>Materias</span>
+      `;
+    }
+    if (cursoId) localStorage.setItem('currentCursoId', cursoId);
+  }
+
+  // --- 🟧 VISTA GENERAL DE CARRERAS ---
+  else if (path.startsWith('/carreras')) {
+    document.getElementById('carreras-btn').classList.add('active');
+    breadcrumbContainer.style.display = 'none';
+  }
+
+  // --- 🟥 CUALQUIER OTRA RUTA ---
+  else {
+    document.getElementById('carreras-btn').classList.add('active');
+    breadcrumbContainer.style.display = 'none';
   }
 };
-
-// Redirige al backend al cambiar de pestaña
-function showTab(tabId) {
-  if (tabId === 'carreras') {
-    window.location.href = '/carreras';
-  } else if (tabId === 'cursos') {
-    window.location.href = '/cursos';
-  } else if (tabId === 'materias') {
-    window.location.href = '/materias';
-  }
-}
 </script>
-
-

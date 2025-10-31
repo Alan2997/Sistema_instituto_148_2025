@@ -1053,29 +1053,49 @@ def materias_por_curso(id_curso):
     if 'nombre' not in session:
         return redirect(url_for('login'))
 
-    # Traer info del curso
+    # 🔍 Parámetros de búsqueda
+    nombre_busqueda = (request.args.get("nombre") or "").strip()
+    estado_activo = request.args.get("activo", "activos")
+
+    # Traer info del curso y carrera
     curso = ejecutar_sql("SELECT id_curso, nombre, id_carrera FROM cursos WHERE id_curso = %s", [id_curso])
     if not curso:
-        flash("Curso no encontrado", "danger")
+        flash("Curso no encontrado.", "danger")
         return redirect(url_for("carreras"))
-
     curso = curso[0]
-    id_carrera = curso[2]
 
-    # Traer info de la carrera asociada
-    carrera = ejecutar_sql("SELECT id_carrera, nombre FROM carreras WHERE id_carrera = %s", [id_carrera])
+    carrera = ejecutar_sql("SELECT id_carrera, nombre FROM carreras WHERE id_carrera = %s", [curso[2]])
     carrera = carrera[0] if carrera else ("", "")
 
-    # Traer las materias de este curso
-    materias = ejecutar_sql("""
+    # Traer materias con filtros
+    query = """
         SELECT id_materia, nombre, carga_horaria, activo
         FROM materias
         WHERE id_curso = %s
-        ORDER BY nombre
-    """, [id_curso])
+    """
+    values = [id_curso]
 
-    return render_template("materias_por_curso.html", curso=curso, carrera=carrera, materias=materias)
+    if nombre_busqueda:
+        query += " AND nombre LIKE %s"
+        values.append(f"%{nombre_busqueda}%")
 
+    if estado_activo == "activos":
+        query += " AND activo = 1"
+    elif estado_activo == "inactivos":
+        query += " AND activo = 0"
+
+    query += " ORDER BY nombre"
+
+    materias = ejecutar_sql(query, values) or []
+
+    return render_template(
+        "materias_por_curso.html",
+        curso=curso,
+        carrera=carrera,
+        materias=materias,
+        nombre_busqueda=nombre_busqueda,
+        estado_activo=estado_activo
+    )
 
 @app.route("/materias")
 def materias():
@@ -1254,6 +1274,59 @@ def eliminar_materia():
 
     flash("Materia eliminada correctamente.", "success")
     return redirect(url_for("materias_por_curso", id_curso=id_curso))
+
+
+# Plan de estudiio
+@app.route("/plan_de_estudio", methods=["GET"])
+def plan_de_estudio():
+    """Vista principal del plan de estudio"""
+    if 'nombre' not in session:
+        return redirect(url_for('login'))
+
+    # Obtener todas las carreras activas
+    carreras = ejecutar_sql("SELECT id_carrera, nombre FROM carreras WHERE activo = 1 ORDER BY nombre ASC")
+
+    # Parámetros seleccionados (si los hay)
+    id_carrera = request.args.get("id_carrera")
+    id_curso = request.args.get("id_curso")
+
+    cursos = []
+    materias = []
+
+    if id_carrera:
+        # Obtener cursos de esa carrera
+        cursos = ejecutar_sql(
+            "SELECT id_curso, nombre FROM cursos WHERE id_carrera = %s AND activo = 1 ORDER BY nombre ASC",
+            [id_carrera]
+        )
+
+    if id_carrera and id_curso:
+        # Obtener materias del curso seleccionado
+        materias = ejecutar_sql("""
+            SELECT nombre, carga_horaria, activo
+            FROM materias
+            WHERE id_curso = %s
+            ORDER BY nombre ASC
+        """, [id_curso])
+
+    return render_template(
+        "plan_de_estudio.html",
+        carreras=carreras,
+        cursos=cursos,
+        materias=materias,
+        id_carrera=id_carrera,
+        id_curso=id_curso
+    )
+
+
+# 📘 Endpoint AJAX para obtener cursos por carrera
+@app.route("/get_cursos_por_carrera/<int:id_carrera>")
+def get_cursos_por_carrera(id_carrera):
+    cursos = ejecutar_sql(
+        "SELECT id_curso, nombre FROM cursos WHERE id_carrera = %s AND activo = 1 ORDER BY nombre ASC",
+        [id_carrera]
+    )
+    return jsonify(cursos)
 
 
 @app.route('/ingresante/<int:id_usuario>/borrar', methods=['POST'])
