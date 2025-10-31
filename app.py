@@ -581,32 +581,49 @@ def editar_ingresante(id_usuario):
 # Cursos por carrera
 @app.route("/carreras/<int:id_carrera>/cursos")
 def cursos_por_carrera(id_carrera):
-    # Traer datos de la carrera
+    # Traer datos de la carrera (una sola fila)
     query_carrera = """
         SELECT id_carrera, nombre, descripcion, tipo, año, ley, fecha, activo
         FROM carreras
         WHERE id_carrera = %s
     """
-    # 🚨 Acá traés solo una fila
     carrera = ejecutar_sql(query_carrera, (id_carrera,))
-
-    # Si la función devuelve lista, tomamos la primera
     if carrera and isinstance(carrera, list):
         carrera = carrera[0]
 
-    # Traer los cursos de esa carrera
-    query_cursos = """
+    # Filtros
+    nombre_busqueda = (request.args.get("nombre") or "").strip()
+    estado_activo = request.args.get("activo", "activos")  # <- por defecto 'activos'
+
+    # Traer cursos filtrados
+    query = """
         SELECT id_curso, nombre, año_calendario, activo
         FROM cursos
         WHERE id_carrera = %s
-        ORDER BY id_curso ASC
     """
-    cursos = ejecutar_sql(query_cursos, (id_carrera,)) or []
+    values = [id_carrera]
+
+    if nombre_busqueda:
+        query += " AND nombre LIKE %s"
+        values.append(f"%{nombre_busqueda}%")
+
+    if estado_activo == "activos":
+        query += " AND activo = 1"
+    elif estado_activo == "inactivos":
+        query += " AND activo = 0"
+    # si es 'todos', no agregamos filtro extra
+
+    query += " ORDER BY id_curso ASC"
+
+    # 👈 ahora sí pasamos 'values' (no (id_carrera,))
+    cursos = ejecutar_sql(query, values) or []
 
     return render_template(
         "cursos_por_carrera.html",
         carrera=carrera,
-        cursos=cursos
+        cursos=cursos,
+        nombre_busqueda=nombre_busqueda,
+        estado_activo=estado_activo
     )
 
 # Agregar curso (versión completa y estable)
