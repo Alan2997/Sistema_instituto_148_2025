@@ -6,6 +6,8 @@ from functools import wraps
 from flask import jsonify
 from datetime import date, datetime, timedelta
 import re
+import math
+
 # Aca importamos todo lo que vayamos a usar, en el documento de requerimientos estan todas las librerias que se usan
 # en la consola usen el metodo pip para instalar cosas como flask
 
@@ -581,49 +583,57 @@ def editar_ingresante(id_usuario):
 # Cursos por carrera
 @app.route("/carreras/<int:id_carrera>/cursos")
 def cursos_por_carrera(id_carrera):
-    # Traer datos de la carrera (una sola fila)
-    query_carrera = """
+    # Traer datos de la carrera
+    carrera = ejecutar_sql("""
         SELECT id_carrera, nombre, descripcion, tipo, año, ley, fecha, activo
         FROM carreras
         WHERE id_carrera = %s
-    """
-    carrera = ejecutar_sql(query_carrera, (id_carrera,))
+    """, (id_carrera,))
     if carrera and isinstance(carrera, list):
         carrera = carrera[0]
+    else:
+        flash("Carrera no encontrada", "danger")
+        return redirect(url_for("carreras"))
 
-    # Filtros
-    nombre_busqueda = (request.args.get("nombre") or "").strip()
-    estado_activo = request.args.get("activo", "activos")  # <- por defecto 'activos'
+    # --- Filtros y paginación ---
+    nombre_busqueda = request.args.get("nombre", "")
+    estado_activo = request.args.get("activo", "activos")
+    page = int(request.args.get("page", 1))
+    por_pagina = 5
+    offset = (page - 1) * por_pagina
 
-    # Traer cursos filtrados
-    query = """
-        SELECT id_curso, nombre, año_calendario, activo
-        FROM cursos
-        WHERE id_carrera = %s
-    """
+    query_base = "FROM cursos WHERE id_carrera = %s"
     values = [id_carrera]
 
     if nombre_busqueda:
-        query += " AND nombre LIKE %s"
+        query_base += " AND nombre LIKE %s"
         values.append(f"%{nombre_busqueda}%")
 
     if estado_activo == "activos":
-        query += " AND activo = 1"
+        query_base += " AND activo = 1"
     elif estado_activo == "inactivos":
-        query += " AND activo = 0"
-    # si es 'todos', no agregamos filtro extra
+        query_base += " AND activo = 0"
 
-    query += " ORDER BY id_curso ASC"
+    # Total de cursos
+    total = ejecutar_sql(f"SELECT COUNT(*) {query_base}", tuple(values))[0][0]
+    total_paginas = math.ceil(total / por_pagina)
 
-    # 👈 ahora sí pasamos 'values' (no (id_carrera,))
-    cursos = ejecutar_sql(query, values) or []
+    # Cursos paginados
+    cursos = ejecutar_sql(f"""
+        SELECT id_curso, nombre, año_calendario, activo
+        {query_base}
+        ORDER BY id_curso ASC
+        LIMIT %s OFFSET %s
+    """, tuple(values + [por_pagina, offset])) or []
 
     return render_template(
         "cursos_por_carrera.html",
         carrera=carrera,
         cursos=cursos,
         nombre_busqueda=nombre_busqueda,
-        estado_activo=estado_activo
+        estado_activo=estado_activo,
+        page=page,
+        total_paginas=total_paginas
     )
 
 # Agregar curso (versión completa y estable)
@@ -652,45 +662,58 @@ def crear_curso_por_carrera(id_carrera):
     flash("Curso agregado correctamente.", "success")
     return redirect(f"/carreras/{id_carrera}/cursos")
 
-# Listado de carreras
 @app.route("/carreras")
 def carreras():
-    nombre_busqueda = request.args.get('nombre', '')
-    estado_activo = request.args.get('activo', 'activos')
+    nombre_busqueda = request.args.get("nombre", "")
+    estado_activo = request.args.get("activo", "activos")
+    turno = request.args.get("turno", "")
+    page = int(request.args.get("page", 1))
+    por_pagina = 5  # 👈 mostramos 5 por página
+    offset = (page - 1) * por_pagina
 
-    # --- Traer carreras ---
-    query = "SELECT id_carrera, nombre, descripcion, tipo, año, ley, fecha, activo FROM carreras WHERE 1=1"
-    valores = []
-
-    if nombre_busqueda:
-        query += " AND nombre LIKE %s"
-        valores.append(f"%{nombre_busqueda}%")
-    if estado_activo == "activos":
-        query += " AND activo = 1"
-    elif estado_activo == "inactivos":
-        query += " AND activo = 0"
-
-    query += " ORDER BY id_carrera DESC"
-    carreras = ejecutar_sql(query, valores) or []
-
-    # --- Traer también las carreras para el modal de cursos ---
-    carreras_select = [(c[0], c[1]) for c in carreras]
-
-    # --- Traer cursos para evitar errores en el render ---
-    query_cursos = """
-        SELECT c.id_curso, c.nombre, c.año_calendario, c.activo, ca.nombre AS nombre_carrera
-        FROM cursos c
-        JOIN carreras ca ON c.id_carrera = ca.id_carrera
+    # Base query
+    query_base = """
+        FROM carreras
+        WHERE 1=1
     """
-    cursos = ejecutar_sql(query_cursos) or []
+    params = []
+
+    # Filtro por nombre
+    if nombre_busqueda:
+        query_base += " AND nombre LIKE %s"
+        params.append(f"%{nombre_busqueda}%")
+
+    # Filtro por estado
+    if estado_activo == "activos":
+        query_base += " AND activo = 1"
+    elif estado_activo == "inactivos":
+        query_base += " AND activo = 0"
+
+    # (Ejemplo) filtro de turno si aplicara en tu tabla — si no existe este campo, podés quitarlo.
+    if turno:
+        query_base += " AND turno = %s"
+        params.append(turno)
+
+    # Contar total de registros
+    total = ejecutar_sql(f"SELECT COUNT(*) {query_base}", tuple(params))[0][0]
+    total_paginas_carreras = math.ceil(total / por_pagina)
+
+    # Obtener las carreras paginadas
+    carreras = ejecutar_sql(f"""
+        SELECT id_carrera, nombre, descripcion, tipo, año, ley, fecha, activo
+        {query_base}
+        ORDER BY id_carrera ASC
+        LIMIT %s OFFSET %s
+    """, tuple(params + [por_pagina, offset]))
 
     return render_template(
         "carreras.html",
         carreras=carreras,
-        carreras_select=carreras_select,
-        cursos=cursos,
-        table="carreras",
-        estado_activo=estado_activo
+        total_paginas_carreras=total_paginas_carreras,
+        page=page,
+        nombre_busqueda=nombre_busqueda,
+        estado_activo=estado_activo,
+        turno=turno
     )
 
 @app.route("/agregar_carrera", methods=["POST"])
@@ -1047,46 +1070,54 @@ def eliminar_curso():
     flash("Curso eliminado correctamente.", "error")
     return redirect(url_for("cursos"))
 
-
 @app.route("/cursos/<int:id_curso>/materias")
 def materias_por_curso(id_curso):
-    if 'nombre' not in session:
-        return redirect(url_for('login'))
-
-    # 🔍 Parámetros de búsqueda
-    nombre_busqueda = (request.args.get("nombre") or "").strip()
-    estado_activo = request.args.get("activo", "activos")
-
-    # Traer info del curso y carrera
+    # Traer info del curso
     curso = ejecutar_sql("SELECT id_curso, nombre, id_carrera FROM cursos WHERE id_curso = %s", [id_curso])
     if not curso:
-        flash("Curso no encontrado.", "danger")
+        flash("Curso no encontrado", "danger")
         return redirect(url_for("carreras"))
     curso = curso[0]
+    id_carrera = curso[2]
 
-    carrera = ejecutar_sql("SELECT id_carrera, nombre FROM carreras WHERE id_carrera = %s", [curso[2]])
+    # Traer info de la carrera asociada
+    carrera = ejecutar_sql("SELECT id_carrera, nombre FROM carreras WHERE id_carrera = %s", [id_carrera])
     carrera = carrera[0] if carrera else ("", "")
 
-    # Traer materias con filtros
-    query = """
-        SELECT id_materia, nombre, carga_horaria, activo
-        FROM materias
-        WHERE id_curso = %s
-    """
+    # --- Filtros y paginación ---
+    nombre_busqueda = request.args.get("nombre", "")
+    estado_activo = request.args.get("activo", "activos")
+    page = int(request.args.get("page", 1))
+    por_pagina = 5
+    offset = (page - 1) * por_pagina
+
+    # Base de consulta
+    query_base = "FROM materias WHERE id_curso = %s"
     values = [id_curso]
 
     if nombre_busqueda:
-        query += " AND nombre LIKE %s"
+        query_base += " AND nombre LIKE %s"
         values.append(f"%{nombre_busqueda}%")
 
     if estado_activo == "activos":
-        query += " AND activo = 1"
+        query_base += " AND activo = 1"
     elif estado_activo == "inactivos":
-        query += " AND activo = 0"
+        query_base += " AND activo = 0"
 
-    query += " ORDER BY nombre"
+    # --- Total de materias ---
+    total_result = ejecutar_sql(f"SELECT COUNT(*) {query_base}", tuple(values))
+    total = total_result[0][0] if total_result else 0
+    total_paginas = math.ceil(total / por_pagina) if total > 0 else 1
 
-    materias = ejecutar_sql(query, values) or []
+    # --- Consulta principal ---
+    materias = ejecutar_sql(f"""
+        SELECT id_materia, nombre, carga_horaria, activo
+        {query_base}
+        ORDER BY id_materia ASC
+        LIMIT %s OFFSET %s
+    """, tuple(values + [por_pagina, offset])) or []
+
+    print("🔍 Materias encontradas:", materias)
 
     return render_template(
         "materias_por_curso.html",
@@ -1094,7 +1125,9 @@ def materias_por_curso(id_curso):
         carrera=carrera,
         materias=materias,
         nombre_busqueda=nombre_busqueda,
-        estado_activo=estado_activo
+        estado_activo=estado_activo,
+        page=page,
+        total_paginas=total_paginas
     )
 
 @app.route("/materias")

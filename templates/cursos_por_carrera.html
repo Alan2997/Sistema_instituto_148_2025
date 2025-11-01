@@ -66,76 +66,55 @@
     <h5 class="text-primary mb-3">
       Cursos de la carrera: <strong>{{ carrera[1] }}</strong>
     </h5>
-    <!-- Barra superior -->
+
     <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
 
-      <!-- 🔍 Formulario de búsqueda y filtros de cursos -->
-      <form method="GET" action="{{ url_for('cursos_por_carrera', id_carrera=carrera[0]) }}" class="form-inline">
+      <!-- 🔍 Formulario de búsqueda y filtro -->
+      <form method="GET" action="{{ url_for('cursos_por_carrera', id_carrera=carrera[0]) }}" class="form-inline" style="justify-content: center; align-items: end;">
         <input type="hidden" name="table" value="cursos">
 
-        <input
-          type="text"
-          name="nombre"
-          class="form-control mr-2"
-          placeholder="Buscar curso por nombre..."
-          value="{{ nombre_busqueda or '' }}"
-        >
-
-        <label class="mr-2  font-weight-bold text-secondary">Estado:</label>
-
-        <div class="form-check form-check-inline">
+        <!-- Buscar -->
+        <div class="d-flex flex-column mr-3">
+          <label for="nombre" class="font-weight-bold text-secondary mb-1" style="align-self: flex-start;">Buscar</label>
           <input
-            class="form-check-input"
-            type="radio"
-            name="activo"
-            value="todos"
-            id="todos"
-            {% if estado_activo == 'todos' %}checked{% endif %}
+            type="text"
+            name="nombre"
+            id="nombre"
+            class="form-control"
+            placeholder="Buscar curso por nombre..."
+            value="{{ nombre_busqueda or '' }}"
           >
-          <label class="form-check-label" for="todos">Todos</label>
         </div>
 
-        <div class="form-check form-check-inline">
-          <input
-            class="form-check-input"
-            type="radio"
-            name="activo"
-            value="activos"
-            id="activos"
-            {% if estado_activo == 'activos' %}checked{% endif %}
-            {% if not estado_activo %}checked{% endif %}
-          >
-          <label class="form-check-label" for="activos">Activos</label>
+        <!-- Estado -->
+        <div class="d-flex flex-column mr-3">
+          <label for="estado" class="font-weight-bold text-secondary mb-1" style="align-self: flex-start;">Estado</label>
+          <select name="activo" id="estado" class="form-control">
+            <option value="activos" {% if estado_activo == 'activos' or not estado_activo %}selected{% endif %}>Activos</option>
+            <option value="todos" {% if estado_activo == 'todos' %}selected{% endif %}>Todos</option>
+            <option value="inactivos" {% if estado_activo == 'inactivos' %}selected{% endif %}>Inactivos</option>
+          </select>
         </div>
 
-        <div class="form-check form-check-inline">
-          <input
-            class="form-check-input"
-            type="radio"
-            name="activo"
-            value="inactivos"
-            id="inactivos"
-            {% if estado_activo == 'inactivos' %}checked{% endif %}
-          >
-          <label class="form-check-label" for="inactivos">Inactivos</label>
+        <!-- Botones -->
+        <div class="d-flex align-items-end">
+          <button type="submit" class="btn btn-primary mr-2">
+            <i class="fas fa-search"></i> Buscar
+          </button>
+
+          <a href="{{ url_for('cursos_por_carrera', id_carrera=carrera[0]) }}" class="btn btn-secondary">
+            <i class="fas fa-undo"></i> Limpiar
+          </a>
         </div>
-
-        <button type="submit" class="btn btn-primary btn-sm ml-2">
-          <i class="fas fa-search"></i> Buscar
-        </button>
-
-        <a href="{{ url_for('cursos_por_carrera', id_carrera=carrera[0]) }}" class="btn btn-secondary btn-sm ml-2">
-          <i class="fas fa-undo"></i> Limpiar
-        </a>
       </form>
 
-      <!-- Botón agregar curso (abre modal) -->
+      <!-- ➕ Botón agregar curso -->
       <a href="#" class="btn btn-success" data-toggle="modal" data-target="#modalAgregarCurso">
         <i class="fas fa-plus"></i> Agregar Curso
       </a>
     </div>
 
-    <!-- Tabla de cursos -->
+    <!-- 📋 Tabla -->
     <table class="table table-striped">
       <thead>
         <tr>
@@ -150,12 +129,12 @@
         {% if cursos %}
           {% for curso in cursos %}
           <tr>
-            <td>{{ loop.index }}</td> <!-- número -->
+            <td>{{ loop.index + ((page - 1) * 5) }}</td>
             <td>{{ curso[1] }}</td>
             <td>{{ curso[2] }}</td>
             <td>{{ 'Sí' if curso[3] else 'No' }}</td>
             <td class="d-flex gap-2">
-              <!-- Botón Editar -->
+              <!-- Editar -->
               <a href="#"
                 class="btn btn-sm btn-outline-primary mr-2"
                 data-toggle="modal"
@@ -168,6 +147,7 @@
                 title="Editar curso">
                 <i class="fas fa-edit"></i>
               </a>
+              <!-- Materias -->
               <a href="{{ url_for('materias_por_curso', id_curso=curso[0]) }}"
                 class="btn btn-sm btn-outline-success"
                 title="Ver / Crear Materias">
@@ -183,6 +163,22 @@
         {% endif %}
       </tbody>
     </table>
+
+    <!-- 📑 Paginación -->
+      {% if total_paginas %}
+      <div class="pagination" id="clase-paginas">
+        <ul class="pagination">
+          {% for p in range(1, total_paginas + 1) %}
+          <li class="page-item {% if p == page %}active{% endif %}" id="cuadrito">
+            <a class="page-link"
+              href="{{ url_for('cursos_por_carrera', id_carrera=carrera[0], page=p, nombre=nombre_busqueda, activo=estado_activo) }}">
+              {{ p }}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
   </div>
 
   {% with messages = get_flashed_messages() %}
