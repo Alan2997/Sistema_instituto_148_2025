@@ -664,56 +664,51 @@ def crear_curso_por_carrera(id_carrera):
 
 @app.route("/carreras")
 def carreras():
+    if 'nombre' not in session:
+        return redirect(url_for('login'))
+
+    page = int(request.args.get("page", 1))
     nombre_busqueda = request.args.get("nombre", "")
     estado_activo = request.args.get("activo", "activos")
-    turno = request.args.get("turno", "")
-    page = int(request.args.get("page", 1))
-    por_pagina = 5  # 👈 mostramos 5 por página
-    offset = (page - 1) * por_pagina
 
-    # Base query
-    query_base = """
+    query = """
+        SELECT 
+            id_carrera,
+            nombre,
+            descripcion,
+            tipo,
+            año,
+            ley,
+            fecha,
+            activo,
+            turno
         FROM carreras
         WHERE 1=1
     """
-    params = []
+    valores = []
 
-    # Filtro por nombre
     if nombre_busqueda:
-        query_base += " AND nombre LIKE %s"
-        params.append(f"%{nombre_busqueda}%")
+        query += " AND nombre LIKE %s"
+        valores.append(f"%{nombre_busqueda}%")
 
-    # Filtro por estado
     if estado_activo == "activos":
-        query_base += " AND activo = 1"
+        query += " AND activo = 1"
     elif estado_activo == "inactivos":
-        query_base += " AND activo = 0"
+        query += " AND activo = 0"
 
-    # (Ejemplo) filtro de turno si aplicara en tu tabla — si no existe este campo, podés quitarlo.
-    if turno:
-        query_base += " AND turno = %s"
-        params.append(turno)
+    query += " ORDER BY id_carrera DESC"
 
-    # Contar total de registros
-    total = ejecutar_sql(f"SELECT COUNT(*) {query_base}", tuple(params))[0][0]
-    total_paginas_carreras = math.ceil(total / por_pagina)
+    carreras = ejecutar_sql(query, valores) or []
 
-    # Obtener las carreras paginadas
-    carreras = ejecutar_sql(f"""
-        SELECT id_carrera, nombre, descripcion, tipo, año, ley, fecha, activo
-        {query_base}
-        ORDER BY id_carrera ASC
-        LIMIT %s OFFSET %s
-    """, tuple(params + [por_pagina, offset]))
+    total_paginas_carreras = 1
 
     return render_template(
         "carreras.html",
         carreras=carreras,
-        total_paginas_carreras=total_paginas_carreras,
         page=page,
-        nombre_busqueda=nombre_busqueda,
+        total_paginas_carreras=total_paginas_carreras,
         estado_activo=estado_activo,
-        turno=turno
+        nombre_busqueda=nombre_busqueda
     )
 
 @app.route("/agregar_carrera", methods=["POST"])
@@ -800,7 +795,8 @@ def editar_carrera():
     descripcion = request.form.get("descripcion")
     tipo = request.form.get("tipo")
     año = request.form.get("año")
-    fecha = date.today().strftime("%Y-%m-%d")
+    turno = request.form.get("turno")  # 👈 nuevo
+    fecha = request.form.get("fecha")  # 👈 ahora editable, no se pisa con date.today()
     ley_file = request.form.get("ley")
     activo = int(request.form.get("activo", 1))
 
@@ -829,6 +825,10 @@ def editar_carrera():
         flash("El tipo es obligatorio", "error")
         return redirect(url_for("carreras"))
 
+    if not turno:
+        flash("El turno es obligatorio", "error")
+        return redirect(url_for("carreras"))
+
     # ✅ Validar duplicado (excepto el mismo id)
     query_existente = """
         SELECT id_carrera FROM carreras 
@@ -847,13 +847,13 @@ def editar_carrera():
     # --- Actualizar carrera ---
     query_carrera = """
         UPDATE carreras
-        SET nombre=%s, descripcion=%s, tipo=%s, año=%s, fecha=%s, activo=%s, ley=%s
+        SET nombre=%s, descripcion=%s, tipo=%s, año=%s, turno=%s, fecha=%s, activo=%s, ley=%s
         WHERE id_carrera=%s
     """
-    values_carrera = [nombre, descripcion, tipo, año, fecha, activo, ley_file, id_carrera]
+    values_carrera = [nombre, descripcion, tipo, año, turno, fecha, activo, ley_file, id_carrera]
     ejecutar_sql(query_carrera, values_carrera)
 
-    # --- Desactivar o reactivar ---
+    # --- Desactivar o reactivar cascada ---
     if activo == 0:
         ejecutar_sql("UPDATE cursos SET activo = 0 WHERE id_carrera = %s", [id_carrera])
         ejecutar_sql("""
@@ -1111,7 +1111,7 @@ def materias_por_curso(id_curso):
 
     # --- Consulta principal ---
     materias = ejecutar_sql(f"""
-        SELECT id_materia, nombre, carga_horaria, activo
+        SELECT id_materia, nombre, carga_horaria, activo, tipo_campo
         {query_base}
         ORDER BY id_materia ASC
         LIMIT %s OFFSET %s
@@ -1146,6 +1146,7 @@ def materias():
             m.nombre AS nombre_materia,
             m.carga_horaria,
             m.activo,
+            m.tipo_campo,
             c.id_curso,
             c.nombre AS nombre_curso,
             ca.id_carrera,
@@ -1175,6 +1176,29 @@ def materias():
     materias = ejecutar_sql(query, valores) or []
     print("✅ Materias encontradas:", materias)
 
+    # --- Calcular la carga horaria total ---
+    query_total_horas = """
+        SELECT SUM(m.carga_horaria)
+        FROM materias AS m
+        LEFT JOIN cursos AS c ON m.id_curso = c.id_curso
+        LEFT JOIN carreras AS ca ON c.id_carrera = ca.id_carrera
+        WHERE 1=1
+    """
+
+    valores_total = []
+
+    if nombre_busqueda:
+        query_total_horas += " AND m.nombre LIKE %s"
+        valores_total.append(f"%{nombre_busqueda}%")
+
+    if estado_activo == "activos":
+        query_total_horas += " AND m.activo = 1"
+    elif estado_activo == "inactivos":
+        query_total_horas += " AND m.activo = 0"
+
+    total_horas_result = ejecutar_sql(query_total_horas, tuple(valores_total))
+    total_horas = total_horas_result[0][0] if total_horas_result and total_horas_result[0][0] else 0
+
     # --- Traer carreras y cursos (para selects) ---
     carreras = ejecutar_sql("SELECT id_carrera, nombre FROM carreras") or []
     cursos = ejecutar_sql("SELECT id_curso, nombre FROM cursos") or []
@@ -1182,13 +1206,15 @@ def materias():
     total_paginas_materias = 1  # Si no estás usando paginación real
 
     return render_template(
-        "materias.html",  # 👈 ahora apunta al template correcto
+        "materias.html",
         cursos=cursos,
         carreras=carreras,
         materias=materias,
         table="materias",
-        estado_activo=estado_activo
+        estado_activo=estado_activo,
+        total_horas=total_horas  # 👈 pasamos el total
     )
+
 
 # Agregar materia
 @app.route("/agregar_materia", methods=["POST"])
@@ -1199,10 +1225,11 @@ def agregar_materia():
     id_curso = request.form.get("id_curso")
     nombre = request.form.get("nombre", "").strip()
     carga_horaria = request.form.get("carga_horaria")
+    tipo_campo = request.form.get("tipo_campo", "").strip()
     activo = int(request.form.get("activo", 1))
 
     # --- Validaciones básicas ---
-    if not id_curso or not nombre or not carga_horaria:
+    if not id_curso or not nombre or not carga_horaria or not tipo_campo:
         flash("Todos los campos son obligatorios.", "danger")
         return redirect(url_for("materias_por_curso", id_curso=id_curso))
 
@@ -1216,17 +1243,26 @@ def agregar_materia():
         flash(f"Ya existe una materia con el nombre '{nombre}' en este curso.", "danger")
         return redirect(url_for("materias_por_curso", id_curso=id_curso))
 
+    # --- Validar tipo_campo duplicado ---
+    query_tipo_existente = """
+        SELECT id_materia FROM materias
+        WHERE LOWER(tipo_campo) = LOWER(%s) AND id_curso = %s
+    """
+    tipo_existente = ejecutar_sql(query_tipo_existente, [tipo_campo, id_curso])
+    if tipo_existente and len(tipo_existente) > 0:
+        flash(f"Ya existe una materia con el tipo de campo '{tipo_campo}' en este curso.", "danger")
+        return redirect(url_for("materias_por_curso", id_curso=id_curso))
+
     # --- Insertar materia ---
     query = """
-        INSERT INTO materias (id_curso, nombre, carga_horaria, activo)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO materias (id_curso, nombre, carga_horaria, tipo_campo, activo)
+        VALUES (%s, %s, %s, %s, %s)
     """
-    values = (id_curso, nombre, carga_horaria, activo)
+    values = (id_curso, nombre, carga_horaria, tipo_campo, activo)
     ejecutar_sql(query, values)
 
     flash("Materia agregada correctamente.", "success")
     return redirect(url_for("materias_por_curso", id_curso=id_curso))
-
 
 # Editar materia
 @app.route("/editar_materia", methods=["POST"])
@@ -1238,17 +1274,18 @@ def editar_materia():
     id_curso = request.form.get("id_curso")
     nombre = request.form.get("nombre", "").strip()
     carga_horaria = request.form.get("carga_horaria")
+    tipo_campo = request.form.get("tipo_campo", "").strip()
     activo = int(request.form.get("activo", 1))
 
     # --- Validaciones ---
     if not id_materia or not id_curso:
         flash("Faltan datos de la materia.", "danger")
         return redirect(url_for("materias_por_curso", id_curso=id_curso))
-    if not nombre:
-        flash("El nombre es obligatorio.", "danger")
+    if not nombre or not tipo_campo:
+        flash("El nombre y el tipo de campo son obligatorios.", "danger")
         return redirect(url_for("materias_por_curso", id_curso=id_curso))
 
-    # --- Validar duplicado (excepto la materia actual) ---
+    # --- Validar duplicado de nombre ---
     query_existente = """
         SELECT id_materia FROM materias
         WHERE LOWER(nombre) = LOWER(%s) AND id_curso = %s AND id_materia != %s
@@ -1258,35 +1295,28 @@ def editar_materia():
         flash(f"Ya existe otra materia con el nombre '{nombre}' en este curso.", "danger")
         return redirect(url_for("materias_por_curso", id_curso=id_curso))
 
-    # --- Validar curso y carrera ---
-    query_curso = "SELECT activo, id_carrera FROM cursos WHERE id_curso = %s"
-    curso = ejecutar_sql(query_curso, [id_curso])
-    if not curso:
-        flash("El curso asociado no existe.", "danger")
-        return redirect(url_for("materias_por_curso", id_curso=id_curso))
-
-    curso_activo = curso[0]["activo"] if isinstance(curso[0], dict) else curso[0][0]
-    id_carrera = curso[0]["id_carrera"] if isinstance(curso[0], dict) else curso[0][1]
-
-    query_carrera = "SELECT activo FROM carreras WHERE id_carrera = %s"
-    carrera = ejecutar_sql(query_carrera, [id_carrera])
-    carrera_activa = carrera[0]["activo"] if carrera and isinstance(carrera[0], dict) else (carrera[0][0] if carrera else 0)
-
-    if activo == 1 and (curso_activo == 0 or carrera_activa == 0):
-        flash("No se puede activar una materia si el curso o la carrera están desactivados.", "danger")
+    # --- Validar duplicado de tipo_campo ---
+    query_tipo = """
+        SELECT id_materia FROM materias
+        WHERE LOWER(tipo_campo) = LOWER(%s) AND id_curso = %s AND id_materia != %s
+    """
+    tipo_existente = ejecutar_sql(query_tipo, [tipo_campo, id_curso, id_materia])
+    if tipo_existente and len(tipo_existente) > 0:
+        flash(f"Ya existe otra materia con el tipo de campo '{tipo_campo}' en este curso.", "danger")
         return redirect(url_for("materias_por_curso", id_curso=id_curso))
 
     # --- Actualizar materia ---
     query = """
         UPDATE materias
-        SET id_curso=%s, nombre=%s, carga_horaria=%s, activo=%s
+        SET id_curso=%s, nombre=%s, carga_horaria=%s, tipo_campo=%s, activo=%s
         WHERE id_materia=%s
     """
-    values = [id_curso, nombre, carga_horaria, activo, id_materia]
+    values = [id_curso, nombre, carga_horaria, tipo_campo, activo, id_materia]
     ejecutar_sql(query, values)
 
     flash("Materia actualizada correctamente.", "success")
     return redirect(url_for("materias_por_curso", id_curso=id_curso))
+
 
 
 # Eliminar materia

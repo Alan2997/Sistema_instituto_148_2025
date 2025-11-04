@@ -137,6 +137,7 @@
               <th>Nombre</th>
               <th>Descripción</th>
               <th>Tipo</th>
+              <th>Turno</th>
               <th>Año</th>
               <th>Ley</th>
               <th>Fecha</th>
@@ -152,6 +153,7 @@
                 <td>{{ carrera[1] }}</td> <!-- nombre -->
                 <td>{{ carrera[2] }}</td> <!-- descripción -->
                 <td>{{ carrera[3] }}</td> <!-- tipo -->
+                <td>{{ carrera[8] }}</td> <!-- turno -->
                 <td>{{ carrera[4] }}</td> <!-- año -->
                 <td>{{ 'S/D' if carrera[5] == None else carrera[5] }}</td> <!-- ley -->
                 <td>{{ carrera[6].strftime('%d/%m/%Y') if carrera[6] else '' }}</td> <!-- fecha -->
@@ -167,8 +169,9 @@
                     data-tipo="{{ carrera[3] }}"
                     data-año="{{ carrera[4] }}"
                     data-ley="{{ carrera[5] }}"
-                    data-fecha="{{ carrera[6] }}"
+                    data-fecha="{{ carrera[6].strftime('%Y-%m-%d') if carrera[6] else '' }}"
                     data-activo="{{ carrera[7] }}"
+                    data-turno="{{ carrera[8] }}"
                     class="btn btn-sm btn-outline-primary mr-1"
                     title="Editar carrera">
                     <i class="fas fa-edit"></i>
@@ -312,12 +315,14 @@
           <form method="POST" action="{{ url_for('editar_carrera') }}">
             <div class="modal-body">
               <input type="hidden" name="id_carrera" id="editar-id_carrera">
-              
+
               <div class="form-row">
+
                 <div class="col-md-6 form-group">
                   <label for="editar-nombre">Nombre</label>
                   <input type="text" class="form-control form-control-sm" id="editar-nombre" name="nombre" required>
                 </div>
+
                 <div class="col-md-6 form-group">
                   <label for="editar-descripcion">Descripción</label>
                   <input type="text" class="form-control form-control-sm" id="editar-descripcion" name="descripcion">
@@ -338,8 +343,13 @@
                 </div>
 
                 <div class="col-md-4 form-group">
-                  <label for="editar-fecha">Fecha creación</label>
-                  <input type="text" class="form-control form-control-sm" id="editar-fecha" name="fecha" disabled>
+                  <label for="editar-turno">Turno</label>
+                  <select class="form-control form-control-sm" name="turno" id="editar-turno">
+                    <option value="">Seleccione un turno</option>
+                    <option value="Mañana">Mañana</option>
+                    <option value="Tarde">Tarde</option>
+                    <option value="Noche">Noche</option>
+                  </select>
                 </div>
 
                 <div class="col-md-6 form-group">
@@ -348,6 +358,11 @@
                 </div>
 
                 <div class="col-md-6 form-group">
+                  <label for="editar-fecha">Fecha de creación</label>
+                  <input type="date" class="form-control form-control-sm" id="editar-fecha" name="fecha" min="{{ min_date }}" max="{{ max_date }}">
+                </div>
+
+                <div class="col-md-12 form-group">
                   <label>Activo</label>
                   <select class="form-control form-control-sm" name="activo" id="editar-activo">
                     <option value="1">Sí</option>
@@ -355,25 +370,6 @@
                   </select>
                 </div>
 
-                <!-- Contenedor oculto de cursos -->
-                <div id="editar-contenedor-cursos-auto" class="mt-3" style="display: none; width: 100%;">
-                  <label class="font-weight-bold text-primary">Cursos que se crearán automáticamente:</label>
-                  <div class="table-responsive-sm">
-                    <table class="table table-striped">
-                      <thead>
-                        <tr>
-                          <th>Nombre del curso</th>
-                          <th>Año calendario</th>
-                        </tr>
-                      </thead>
-                      <tbody id="editar-tabla-cursos-auto">
-                        <tr>
-                          <td colspan="2" class="text-muted text-center">Seleccione un tipo para ver los cursos</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -382,10 +378,10 @@
               <button type="submit" class="btn btn-primary">Guardar cambios</button>
             </div>
           </form>
+
         </div>
       </div>
     </div>
-
 
     <!-- Modal Eliminar Carrera -->
     <div class="modal fade" id="modalEliminarCarrera" tabindex="-1" role="dialog" aria-labelledby="modalEliminarCarreraLabel" aria-hidden="true">
@@ -718,31 +714,20 @@
   </script>
   <!-- Script editar carrera -->
   <script>
-    $('#modalEditarCarrera').on('show.bs.modal', function (event) {
-      var button = $(event.relatedTarget); // botón que abrió el modal
-
-      // Obtener datos del botón
-      var id = button.data('id');
-      var nombre = button.data('nombre');
-      var descripcion = button.data('descripcion');
-      var tipo = button.data('tipo');
-      var año = button.data('año');
-      var fecha = button.data('fecha');
-      var ley = button.data('ley');
-      var activo = button.data('activo');
-
-      // Pasar datos al modal
-      var modal = $(this);
-      modal.find('#editar-id_carrera').val(id);
-      modal.find('#editar-nombre').val(nombre);
-      modal.find('#editar-descripcion').val(descripcion);
-      modal.find('#editar-tipo').val(tipo);
-      modal.find('#editar-año').val(año);
-      modal.find('#editar-fecha').val(fecha);
-      modal.find('#editar-ley').val(ley);
-      modal.find('#editar-activo').val(activo);
-    });
+  $('#modalEditarCarrera').on('show.bs.modal', function (event) {
+    const button = $(event.relatedTarget);
+    $('#editar-id_carrera').val(button.data('id'));
+    $('#editar-nombre').val(button.data('nombre'));
+    $('#editar-descripcion').val(button.data('descripcion'));
+    $('#editar-tipo').val(button.data('tipo'));
+    $('#editar-año').val(button.data('año'));
+    $('#editar-ley').val(button.data('ley'));
+    $('#editar-turno').val(button.data('turno'));
+    $('#editar-fecha').val(button.data('fecha'));
+    $('#editar-activo').val(button.data('activo'));
+  });
   </script>
+
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const selectEditarCurso = document.getElementById("editar-año");

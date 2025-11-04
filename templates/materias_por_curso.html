@@ -64,8 +64,7 @@
 
   <div class="container mt-4">
     <h5 class="text-primary mb-3">
-      Materias del curso: <strong>{{ curso[1] }}</strong>
-      <small class="text-muted">(Carrera: {{ carrera[1] }})</small>
+      {{ carrera[1] }}/ <strong>{{ curso[1] }}</strong>
     </h5>
 
     <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
@@ -106,6 +105,13 @@
             <i class="fas fa-undo"></i> Limpiar
           </a>
         </div>
+        {% if materias %}
+  <div class="mt-3 text-right">
+    <strong>Total de carga horaria:</strong>
+    <span class="text-primary">{{ total_horas }} horas</span>
+  </div>
+{% endif %}
+
       </form>
 
       <!-- ➕ Botón agregar materia -->
@@ -120,6 +126,7 @@
         <tr>
           <th>N°</th>
           <th>Nombre</th>
+          <th>Tipo de campo</th>
           <th>Carga horaria</th>
           <th>Activo</th>
           <th>Acciones</th>
@@ -131,6 +138,7 @@
           <tr>
             <td>{{ loop.index + ((page - 1) * 5) }}</td>
             <td>{{ materia[1] }}</td>
+            <td>{{ materia[4] | default('No disponible') }}</td>
             <td style="text-align: start;">{{ materia[2] }} hs</td>
             <td>{{ 'Sí' if materia[3] else 'No' }}</td>
             <td class="d-flex gap-2">
@@ -143,6 +151,7 @@
                 data-nombre="{{ materia[1] }}"
                 data-horas="{{ materia[2] }}"
                 data-activo="{{ materia[3] }}"
+                data-tipo_campo="{{ materia[4] }}"
                 title="Editar materia">
                 <i class="fas fa-edit"></i>
               </a>
@@ -218,6 +227,22 @@
                 <input type="text" class="form-control form-control-sm" id="nombre" name="nombre" required>
               </div>
               <div class="col-md-6 form-group">
+                <label>Tipo de campo</label>
+                <div class="d-flex">
+                  <select class="form-control form-control-sm" name="tipo_campo" id="nuevo-tipo_campo" required>
+                    {% for materia in materias|unique(attribute=4) %}
+                    <option value="{{ materia[4] }}">{{ materia[4] }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="button" class="btn btn-sm btn-outline-success ml-2" id="btnAgregarCampo">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-danger ml-2" id="btnEliminarCampo">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="col-md-6 form-group">
                 <label for="carga_horaria">Carga horaria</label>
                 <input type="number" class="form-control form-control-sm" id="carga_horaria" name="carga_horaria" required>
               </div>
@@ -254,6 +279,22 @@
               <div class="col-md-6 form-group">
                 <label for="editar-nombre">Nombre</label>
                 <input type="text" class="form-control form-control-sm" id="editar-nombre" name="nombre" required>
+              </div>
+              <div class="col-md-6 form-group">
+                <label>Tipo de campo</label>
+                <div class="d-flex">
+                  <select class="form-control form-control-sm" name="tipo_campo" id="editar-tipo_campo" required>
+                    {% for materia in materias|unique(attribute=4) %}
+                    <option value="{{ materia[4] }}">{{ materia[4] }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="button" class="btn btn-sm btn-outline-danger ml-2" id="btnEliminarCampoEditar">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-success ml-2" id="btnEditarCampo">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
               </div>
               <div class="col-md-6 form-group">
                 <label for="editar-carga_horaria">Carga horaria</label>
@@ -311,22 +352,84 @@
 
 <!-- Scripts para completar los modales -->
 <script>
-  // Editar Materia
+  // === Agregar un nuevo tipo de campo dinámicamente ===
+  function agregarNuevoTipoCampo(selectId) {
+    const nuevoCampo = prompt("Ingrese un nuevo tipo de campo:");
+    if (nuevoCampo && nuevoCampo.trim() !== "") {
+      const select = document.getElementById(selectId);
+      const existe = Array.from(select.options).some(
+        opt => opt.value.toLowerCase() === nuevoCampo.trim().toLowerCase()
+      );
+      if (!existe) {
+        const option = document.createElement("option");
+        option.value = nuevoCampo.trim();
+        option.textContent = nuevoCampo.trim();
+        select.appendChild(option);
+        select.value = nuevoCampo.trim();
+      } else {
+        alert("Ya existe un tipo de campo con ese nombre.");
+      }
+    }
+  }
+
+  // === Eliminar tipo de campo seleccionado ===
+  function eliminarTipoCampo(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select || select.options.length === 0) {
+      alert("No hay tipos de campo para eliminar.");
+      return;
+    }
+
+    const selectedOption = select.options[select.selectedIndex];
+    if (!selectedOption) {
+      alert("No hay ningún tipo seleccionado.");
+      return;
+    }
+
+    const confirmar = confirm(`¿Eliminar el tipo de campo "${selectedOption.text}" del listado?`);
+    if (confirmar) {
+      select.removeChild(selectedOption);
+      // Si quedan más opciones, seleccionamos la primera automáticamente
+      if (select.options.length > 0) {
+        select.selectedIndex = 0;
+      }
+    }
+  }
+
+  // === Eventos para agregar tipo de campo ===
+  document.getElementById("btnAgregarCampo").addEventListener("click", function() {
+    agregarNuevoTipoCampo("nuevo-tipo_campo");
+  });
+  document.getElementById("btnEditarCampo").addEventListener("click", function() {
+    agregarNuevoTipoCampo("editar-tipo_campo");
+  });
+
+  // === Eventos para eliminar tipo de campo ===
+  document.getElementById("btnEliminarCampo").addEventListener("click", function() {
+    eliminarTipoCampo("nuevo-tipo_campo");
+  });
+  document.getElementById("btnEliminarCampoEditar").addEventListener("click", function() {
+    eliminarTipoCampo("editar-tipo_campo");
+  });
+
+  // === Completar datos al abrir modal de edición ===
   $('#modalEditarMateria').on('show.bs.modal', function (event) {
     var button = $(event.relatedTarget);
     var id_materia = button.data('id_materia');
     var nombre = button.data('nombre');
     var horas = button.data('horas');
     var activo = button.data('activo');
+    var tipo_campo = button.data('tipo_campo');
 
     var modal = $(this);
     modal.find('#editar-id_materia').val(id_materia);
     modal.find('#editar-nombre').val(nombre);
     modal.find('#editar-carga_horaria').val(horas);
     modal.find('#editar-activo').val(activo);
+    modal.find('#editar-tipo_campo').val(tipo_campo);
   });
 
-  // Eliminar Materia
+  // === Completar datos al abrir modal de eliminación ===
   $('#modalEliminarMateria').on('show.bs.modal', function (event) {
     var button = $(event.relatedTarget);
     var id_materia = button.data('id_materia');
@@ -336,6 +439,7 @@
     modal.find('#eliminar-nombre').text(nombre);
   });
 </script>
+
 
 </body>
 
