@@ -699,6 +699,8 @@ def carreras():
     query += " ORDER BY id_carrera DESC"
 
     carreras = ejecutar_sql(query, valores) or []
+    print("✅ Carreras encontradas:", carreras)
+
 
     total_paginas_carreras = 1
 
@@ -1117,7 +1119,12 @@ def materias_por_curso(id_curso):
         LIMIT %s OFFSET %s
     """, tuple(values + [por_pagina, offset])) or []
 
+    # --- Calcular total de carga horaria ---
+    total_horas_result = ejecutar_sql(f"SELECT SUM(carga_horaria) {query_base}", tuple(values))
+    total_horas = total_horas_result[0][0] if total_horas_result and total_horas_result[0][0] else 0
+
     print("🔍 Materias encontradas:", materias)
+    print("🕓 Total horas:", total_horas)
 
     return render_template(
         "materias_por_curso.html",
@@ -1127,8 +1134,10 @@ def materias_por_curso(id_curso):
         nombre_busqueda=nombre_busqueda,
         estado_activo=estado_activo,
         page=page,
-        total_paginas=total_paginas
+        total_paginas=total_paginas,
+        total_horas=total_horas  # 👈 ahora lo enviamos al template
     )
+
 
 @app.route("/materias")
 def materias():
@@ -1216,7 +1225,6 @@ def materias():
     )
 
 
-# Agregar materia
 @app.route("/agregar_materia", methods=["POST"])
 def agregar_materia():
     if 'nombre' not in session:
@@ -1243,15 +1251,7 @@ def agregar_materia():
         flash(f"Ya existe una materia con el nombre '{nombre}' en este curso.", "danger")
         return redirect(url_for("materias_por_curso", id_curso=id_curso))
 
-    # --- Validar tipo_campo duplicado ---
-    query_tipo_existente = """
-        SELECT id_materia FROM materias
-        WHERE LOWER(tipo_campo) = LOWER(%s) AND id_curso = %s
-    """
-    tipo_existente = ejecutar_sql(query_tipo_existente, [tipo_campo, id_curso])
-    if tipo_existente and len(tipo_existente) > 0:
-        flash(f"Ya existe una materia con el tipo de campo '{tipo_campo}' en este curso.", "danger")
-        return redirect(url_for("materias_por_curso", id_curso=id_curso))
+    # ✅ Ya no se valida el tipo_campo duplicado
 
     # --- Insertar materia ---
     query = """
@@ -1295,15 +1295,7 @@ def editar_materia():
         flash(f"Ya existe otra materia con el nombre '{nombre}' en este curso.", "danger")
         return redirect(url_for("materias_por_curso", id_curso=id_curso))
 
-    # --- Validar duplicado de tipo_campo ---
-    query_tipo = """
-        SELECT id_materia FROM materias
-        WHERE LOWER(tipo_campo) = LOWER(%s) AND id_curso = %s AND id_materia != %s
-    """
-    tipo_existente = ejecutar_sql(query_tipo, [tipo_campo, id_curso, id_materia])
-    if tipo_existente and len(tipo_existente) > 0:
-        flash(f"Ya existe otra materia con el tipo de campo '{tipo_campo}' en este curso.", "danger")
-        return redirect(url_for("materias_por_curso", id_curso=id_curso))
+    # ✅ Ya no se valida tipo_campo duplicado
 
     # --- Actualizar materia ---
     query = """
@@ -1316,7 +1308,6 @@ def editar_materia():
 
     flash("Materia actualizada correctamente.", "success")
     return redirect(url_for("materias_por_curso", id_curso=id_curso))
-
 
 
 # Eliminar materia
@@ -1339,38 +1330,55 @@ def eliminar_materia():
     return redirect(url_for("materias_por_curso", id_curso=id_curso))
 
 
-# Plan de estudiio
 @app.route("/plan_de_estudio", methods=["GET"])
 def plan_de_estudio():
-    """Vista principal del plan de estudio"""
     if 'nombre' not in session:
         return redirect(url_for('login'))
 
     # Obtener todas las carreras activas
     carreras = ejecutar_sql("SELECT id_carrera, nombre FROM carreras WHERE activo = 1 ORDER BY nombre ASC")
 
-    # Parámetros seleccionados (si los hay)
+    # Parámetros seleccionados
     id_carrera = request.args.get("id_carrera")
     id_curso = request.args.get("id_curso")
+    page = int(request.args.get("page", 1))
+    por_pagina = 5
+    offset = (page - 1) * por_pagina
 
     cursos = []
     materias = []
+    total_paginas = 1
+    total_horas = 0
 
     if id_carrera:
-        # Obtener cursos de esa carrera
+        # Obtener cursos activos de la carrera seleccionada
         cursos = ejecutar_sql(
             "SELECT id_curso, nombre FROM cursos WHERE id_carrera = %s AND activo = 1 ORDER BY nombre ASC",
             [id_carrera]
         )
 
     if id_carrera and id_curso:
-        # Obtener materias del curso seleccionado
+        # --- Total de materias (para paginación) ---
+        total_result = ejecutar_sql("SELECT COUNT(*) FROM materias WHERE id_curso = %s", [id_curso])
+        total = total_result[0][0] if total_result else 0
+        total_paginas = math.ceil(total / por_pagina) if total > 0 else 1
+
+        # --- Obtener las materias paginadas ---
         materias = ejecutar_sql("""
             SELECT nombre, carga_horaria, activo
             FROM materias
             WHERE id_curso = %s
             ORDER BY nombre ASC
+            LIMIT %s OFFSET %s
+        """, (id_curso, por_pagina, offset)) or []
+
+        # --- Calcular la carga horaria total ---
+        total_horas_result = ejecutar_sql("""
+            SELECT SUM(carga_horaria)
+            FROM materias
+            WHERE id_curso = %s
         """, [id_curso])
+        total_horas = total_horas_result[0][0] if total_horas_result and total_horas_result[0][0] else 0
 
     return render_template(
         "plan_de_estudio.html",
@@ -1378,11 +1386,13 @@ def plan_de_estudio():
         cursos=cursos,
         materias=materias,
         id_carrera=id_carrera,
-        id_curso=id_curso
+        id_curso=id_curso,
+        page=page,
+        total_paginas=total_paginas,
+        total_horas=total_horas  # 👈 lo enviamos al template
     )
 
-
-# 📘 Endpoint AJAX para obtener cursos por carrera
+# 📘 Endpoint para obtener cursos por carrera
 @app.route("/get_cursos_por_carrera/<int:id_carrera>")
 def get_cursos_por_carrera(id_carrera):
     cursos = ejecutar_sql(

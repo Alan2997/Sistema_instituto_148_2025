@@ -105,13 +105,6 @@
             <i class="fas fa-undo"></i> Limpiar
           </a>
         </div>
-        {% if materias %}
-  <div class="mt-3 text-right">
-    <strong>Total de carga horaria:</strong>
-    <span class="text-primary">{{ total_horas }} horas</span>
-  </div>
-{% endif %}
-
       </form>
 
       <!-- ➕ Botón agregar materia -->
@@ -171,7 +164,7 @@
           {% endfor %}
         {% else %}
         <tr>
-          <td colspan="5" class="text-center text-muted">No hay materias registradas</td>
+          <td colspan="6" class="text-center text-muted">No hay materias registradas</td>
         </tr>
         {% endif %}
       </tbody>
@@ -192,7 +185,18 @@
       </ul>
     </div>
     {% endif %}
+    {% if materias %}
+  <div class="card mt-4 mb-3 w-100" style="border: 1px solid #d5d5d5; border-radius: 12px;">
+    <div class="card-body d-flex justify-content-between align-items-center" style="background-color: #f9f9f9;">
+      <strong class="text-secondary mb-0">Total de carga horaria:</strong>
+      <span class="text-primary font-weight-bold" style="font-size: 1.1rem;">
+        {{ total_horas }} horas
+      </span>
+    </div>
   </div>
+{% endif %}
+  </div>
+
 
 
   {% with messages = get_flashed_messages() %}

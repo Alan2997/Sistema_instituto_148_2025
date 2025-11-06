@@ -86,9 +86,9 @@
         {% if materias and materias|length > 0 %}
           {% for materia in materias %}
           <tr>
-            <td>{{ loop.index }}</td>
+            <td>{{ loop.index + ((page - 1) * 5) }}</td>
             <td>{{ materia[0] }}</td>
-            <td>{{ materia[1] }}</td>
+            <td>{{ materia[1] }} hs</td>
             <td>{{ 'Sí' if materia[2] else 'No' }}</td>
           </tr>
           {% endfor %}
@@ -101,6 +101,29 @@
         {% endif %}
       </tbody>
     </table>
+     {% if total_paginas %}
+    <div class="pagination" id="clase-paginas">
+      <ul class="pagination">
+        {% for p in range(1, total_paginas + 1) %}
+        <li class="page-item {% if p == page %}active{% endif %}" id="cuadrito">
+          <a class="page-link"
+            href="{{ url_for('plan_de_estudio', id_carrera=id_carrera, id_curso=id_curso, page=p) }}">
+            {{ p }}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% if materias %}
+  <div class="card p-3 mt-3 shadow-sm border rounded" style="border-color: #d5d5d5; width: 100%;">
+    <div class="d-flex justify-content-between align-items-center">
+      <strong class="text-secondary mb-0">Total de carga horaria:</strong>
+      <span class="text-primary font-weight-bold">{{ total_horas }} horas</span>
+    </div>
+  </div>
+{% endif %}
+
+    {% endif %}
   </div>
 
   <!-- 🔹 Scripts -->
