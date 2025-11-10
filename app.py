@@ -580,6 +580,10 @@ def editar_ingresante(id_usuario):
         alumno_turno=alumno_turno
     )
 
+
+"""
+MÓDULO DE CARRERAS
+"""
 # Cursos por carrera
 @app.route("/carreras/<int:id_carrera>/cursos")
 def cursos_por_carrera(id_carrera):
@@ -636,7 +640,7 @@ def cursos_por_carrera(id_carrera):
         total_paginas=total_paginas
     )
 
-# Agregar curso (versión completa y estable)
+# Agregar curso en carreras
 @app.route("/carreras/<int:id_carrera>/cursos/nuevo", methods=["POST"])
 def crear_curso_por_carrera(id_carrera):
     if 'nombre' not in session:
@@ -662,6 +666,7 @@ def crear_curso_por_carrera(id_carrera):
     flash("Curso agregado correctamente.", "success")
     return redirect(f"/carreras/{id_carrera}/cursos")
 
+# Obtener carreras
 @app.route("/carreras")
 def carreras():
     if 'nombre' not in session:
@@ -741,6 +746,7 @@ def carreras():
         años_disponibles=años_disponibles
     )
 
+# Agregar carrera
 @app.route("/agregar_carrera", methods=["POST"])
 def agregar_carrera():
     if 'nombre' not in session:
@@ -814,6 +820,7 @@ def agregar_carrera():
     flash(f"Carrera '{nombre}' agregada correctamente con {len(cursos_a_crear)} curso(s).", "success")
     return redirect(url_for("carreras"))
 
+# Editar carrera
 @app.route("/editar_carrera", methods=["POST"])
 def editar_carrera():
     id_carrera = request.form.get("id_carrera")
@@ -993,6 +1000,7 @@ def cursos():
         estado_activo=estado_activo
     )
 
+# Agregar curso
 @app.route("/agregar_curso", methods=["POST"])
 def agregar_curso():
     if 'nombre' not in session:
@@ -1029,6 +1037,7 @@ def agregar_curso():
     flash("Curso agregado correctamente.", "success")
     return redirect(url_for("cursos_por_carrera", id_carrera=id_carrera))
 
+# Editar curso
 @app.route("/editar_curso", methods=["POST"])
 def editar_curso():
     if 'nombre' not in session:
@@ -1100,6 +1109,7 @@ def eliminar_curso():
     flash("Curso eliminado correctamente.", "error")
     return redirect(url_for("cursos"))
 
+# Obtener materias por curso
 @app.route("/cursos/<int:id_curso>/materias")
 def materias_por_curso(id_curso):
     # Traer info del curso
@@ -1166,7 +1176,7 @@ def materias_por_curso(id_curso):
         total_horas=total_horas  # 👈 ahora lo enviamos al template
     )
 
-
+# Obtener materias
 @app.route("/materias")
 def materias():
     if 'nombre' not in session:
@@ -1252,7 +1262,7 @@ def materias():
         total_horas=total_horas  # 👈 pasamos el total
     )
 
-
+# Agregar materia
 @app.route("/agregar_materia", methods=["POST"])
 def agregar_materia():
     if 'nombre' not in session:
@@ -1373,7 +1383,7 @@ def eliminar_materia():
     flash("Materia eliminada correctamente.", "success")
     return redirect(url_for("materias_por_curso", id_curso=id_curso))
 
-
+# Plan de estudio mediante carreras y cursos
 @app.route("/plan_de_estudio", methods=["GET"])
 def plan_de_estudio():
     if 'nombre' not in session:
