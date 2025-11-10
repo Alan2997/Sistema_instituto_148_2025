@@ -68,66 +68,76 @@
       <div id="carreras" class="tab-content">
         <h5 class="text-primary mt-5">Listado de Carreras</h5>
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
-    
-        <!-- Formulario de búsqueda y filtros -->
-        <form method="GET" action="{{ url_for('carreras') }}" class="form-inline">
-          <input type="hidden" name="table" value="carreras">
+        <div class="d-flex justify-content-between align-items-center mb-3 mt-3">
 
-          <!-- Campo de búsqueda -->
-           <div style="display: flex; flex-direction: column; gap: 2px; align-items: flex-start;">
+          <!-- 🔍 Formulario de búsqueda y filtros -->
+          <form method="GET" action="{{ url_for('carreras') }}" class="form-inline" style="justify-content: center; align-items: end;">
+            <input type="hidden" name="table" value="carreras">
 
-            <label for="estado" class="mr-2 font-weight-bold text-secondary">Buscar</label>
-            <input
-              type="text"
-              name="nombre"
-              class="form-control mr-2 mb-2"
-              placeholder="Buscar por nombre"
-              value="{{ nombre_busqueda or '' }}"
-              style="align-self: flex-end;"
-            >
-          </div>
+            <!-- Buscar -->
+            <div class="d-flex flex-column mr-3">
+              <label for="nombre" class="font-weight-bold text-secondary mb-1" style="align-self: flex-start;">Buscar</label>
+              <input
+                type="text"
+                name="nombre"
+                id="nombre"
+                class="form-control"
+                placeholder="Buscar carrera por nombre..."
+                value="{{ nombre_busqueda or '' }}"
+              >
+            </div>
 
-          <!-- Filtro de estado con SELECT -->
-          <div style="display: flex; flex-direction: column; gap: 2px; align-items: flex-start;">
+            <!-- Estado -->
+            <div class="d-flex flex-column mr-3">
+              <label for="estado" class="font-weight-bold text-secondary mb-1" style="align-self: flex-start;">Estado</label>
+              <select name="activo" id="estado" class="form-control">
+                <option value="activos" {% if estado_activo == 'activos' or not estado_activo %}selected{% endif %}>Activos</option>
+                <option value="todos" {% if estado_activo == 'todos' %}selected{% endif %}>Todos</option>
+                <option value="inactivos" {% if estado_activo == 'inactivos' %}selected{% endif %}>Inactivos</option>
+              </select>
+            </div>
 
-            <label for="estado" class="mr-2 font-weight-bold text-secondary">Estado</label>
-            <select
-              name="activo"
-              id="estado"
-              class="form-control mr-2 mb-2"
-            >
-              <option value="activos" {% if estado_activo == 'activos' or not estado_activo %}selected{% endif %}>Activos</option>
-              <option value="todos" {% if estado_activo == 'todos' %}selected{% endif %}>Todos</option>
-              <option value="inactivos" {% if estado_activo == 'inactivos' %}selected{% endif %}>Inactivos</option>
-            </select>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 2px; align-items: flex-start;">
+            <!-- Turno -->
+            <div class="d-flex flex-column mr-3">
+              <label for="turno" class="font-weight-bold text-secondary mb-1" style="align-self: flex-start;">Turno</label>
+              <select name="turno" id="turno" class="form-control">
+                <option value="">Todos</option>
+                <option value="Mañana" {% if turno_seleccionado == 'Mañana' %}selected{% endif %}>Mañana</option>
+                <option value="Tarde" {% if turno_seleccionado == 'Tarde' %}selected{% endif %}>Tarde</option>
+                <option value="Noche" {% if turno_seleccionado == 'Noche' %}selected{% endif %}>Noche</option>
+              </select>
+            </div>
 
-            <label for="estado" class="mr-2 font-weight-bold text-secondary">Turnos</label>
-            <select
-              name="activo"
-              id="estado"
-              class="form-control mr-2 mb-2"
-            >
-              <option value="activos" {% if estado_activo == 'activos' or not estado_activo %}selected{% endif %}>Mañana</option>
-              <option value="todos" {% if estado_activo == 'todos' %}selected{% endif %}>Tarde</option>
-              <option value="inactivos" {% if estado_activo == 'inactivos' %}selected{% endif %}>Noche</option>
-            </select>
-          </div>
-          <!-- Botón buscar -->
-          <button type="submit" class="btn btn-primary mb-2" style="align-self: flex-end;">
-            <i class="fas fa-search"></i> Buscar
-          </button>
-        </form>
+            <!-- 🔹 Año (solo si hay más de un año disponible) -->
+            {% if años_disponibles and años_disponibles|length > 1 %}
+            <div class="d-flex flex-column mr-3">
+              <label for="anio" class="font-weight-bold text-secondary mb-1" style="align-self: flex-start;">Año</label>
+              <select name="anio" id="anio" class="form-control">
+                {% for anio in años_disponibles %}
+                  <option value="{{ anio }}" {% if anio == anio_seleccionado %}selected{% endif %}>{{ anio }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+
+            <!-- Botones -->
+            <div class="d-flex align-items-end">
+              <button type="submit" class="btn btn-primary mr-2">
+                <i class="fas fa-search" title="Buscar"></i> 
+              </button>
+
+              <a href="{{ url_for('carreras') }}" class="btn btn-secondary">
+                <i class="fas fa-undo" title="Limpiar filtros"></i> 
+              </a>
+            </div>
+          </form>
 
 
-          <!-- Botón de agregar a la derecha -->
+          <!-- ➕ Botón agregar carrera -->
           <a href="{{ url_for('agregar_carrera') }}" class="btn btn-success" data-toggle="modal" data-target="#modalAgregarCarrera">
-            <i class="fas fa-plus"></i> Agregar
+            <i class="fas fa-plus"></i> Agregar Carrera
           </a>
         </div>
-
 
         <!-- Tabla de carreras -->
         <table class="table table-striped">

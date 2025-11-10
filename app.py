@@ -670,6 +670,19 @@ def carreras():
     page = int(request.args.get("page", 1))
     nombre_busqueda = request.args.get("nombre", "")
     estado_activo = request.args.get("activo", "activos")
+    turno_seleccionado = request.args.get("turno", "")
+    anio_actual = date.today().year
+    anio_seleccionado = int(request.args.get("anio", anio_actual))
+
+    # 🔹 Obtener todos los años disponibles (pasados, actuales, futuros)
+    años_disponibles_result = ejecutar_sql("""
+        SELECT DISTINCT año
+        FROM carreras
+        WHERE año IS NOT NULL
+        ORDER BY año DESC
+    """) or []
+
+    años_disponibles = [fila[0] for fila in años_disponibles_result]
 
     query = """
         SELECT 
@@ -687,20 +700,31 @@ def carreras():
     """
     valores = []
 
+    # --- Filtro por nombre ---
     if nombre_busqueda:
         query += " AND nombre LIKE %s"
         valores.append(f"%{nombre_busqueda}%")
 
+    # --- Filtro por estado ---
     if estado_activo == "activos":
         query += " AND activo = 1"
     elif estado_activo == "inactivos":
         query += " AND activo = 0"
 
+    # --- Filtro por turno ---
+    if turno_seleccionado:
+        query += " AND turno = %s"
+        valores.append(turno_seleccionado)
+
+    # --- Filtro por año ---
+    if anio_seleccionado:
+        query += " AND año = %s"
+        valores.append(anio_seleccionado)
+
     query += " ORDER BY id_carrera DESC"
 
     carreras = ejecutar_sql(query, valores) or []
     print("✅ Carreras encontradas:", carreras)
-
 
     total_paginas_carreras = 1
 
@@ -710,7 +734,11 @@ def carreras():
         page=page,
         total_paginas_carreras=total_paginas_carreras,
         estado_activo=estado_activo,
-        nombre_busqueda=nombre_busqueda
+        nombre_busqueda=nombre_busqueda,
+        turno_seleccionado=turno_seleccionado,
+        anio_actual=anio_actual,
+        anio_seleccionado=anio_seleccionado,
+        años_disponibles=años_disponibles
     )
 
 @app.route("/agregar_carrera", methods=["POST"])
@@ -718,31 +746,33 @@ def agregar_carrera():
     if 'nombre' not in session:
         return redirect(url_for('login'))
 
+    # --- Obtener datos del formulario ---
     nombre = request.form.get("nombre", "").strip()
     descripcion = request.form.get("descripcion", "").strip()
     tipo = request.form.get("tipo", "").strip()
     año = request.form.get("año", "").strip()
-    ley_file = request.form.get("ley", "").strip()
-    fecha = date.today().strftime("%Y-%m-%d")
+    turno = request.form.get("turno", "").strip()  # ✅ ahora lo capturamos
+    ley = request.form.get("ley", "").strip()
+    fecha = request.form.get("fecha_creacion") or date.today().strftime("%Y-%m-%d")
 
-    # --- VALIDACIONES ---
-    if not nombre or not descripcion or not tipo or not año:
-        flash("Todos los campos obligatorios deben completarse", "danger")
+    # --- Validaciones ---
+    if not nombre or not descripcion or not tipo or not año or not turno or not ley:
+        flash("Todos los campos obligatorios deben completarse.", "danger")
         return redirect(url_for("carreras"))
 
-    # ✅ Validar duplicado
+    # --- Validar duplicado ---
     query_existente = "SELECT id_carrera FROM carreras WHERE LOWER(nombre) = LOWER(%s)"
     existe = ejecutar_sql(query_existente, [nombre])
-    if existe and len(existe) > 0:
+    if existe:
         flash(f"Ya existe una carrera registrada con el nombre '{nombre}'.", "danger")
         return redirect(url_for("carreras"))
 
-    # --- INSERTAR LA CARRERA ---
+    # --- Insertar la carrera con el turno ---
     query_insert = """
-        INSERT INTO carreras (nombre, descripcion, tipo, año, ley, fecha, activo)
-        VALUES (%s, %s, %s, %s, %s, %s, 1)
+        INSERT INTO carreras (nombre, descripcion, tipo, año, ley, fecha, activo, turno)
+        VALUES (%s, %s, %s, %s, %s, %s, 1, %s)
     """
-    values = (nombre, descripcion, tipo, año, ley_file, fecha)
+    values = (nombre, descripcion, tipo, año, ley, fecha, turno)
 
     try:
         ejecutar_sql(query_insert, values)
@@ -750,26 +780,21 @@ def agregar_carrera():
         flash(f"Error al crear la carrera: {e}", "danger")
         return redirect(url_for("carreras"))
 
-    # --- OBTENER EL ID DE LA CARRERA INSERTADA ---
-    try:
-        query_id = """
-            SELECT id_carrera
-            FROM carreras
-            WHERE nombre = %s AND tipo = %s AND año = %s
-            ORDER BY id_carrera DESC
-            LIMIT 1
-        """
-        result = ejecutar_sql(query_id, (nombre, tipo, año))
-        id_carrera = result[0][0] if result and len(result) > 0 else None
-    except Exception as e:
-        flash(f"Error al recuperar ID de la carrera: {e}", "danger")
-        return redirect(url_for("carreras"))
+    # --- Obtener ID recién creada ---
+    result = ejecutar_sql("""
+        SELECT id_carrera
+        FROM carreras
+        WHERE nombre = %s AND tipo = %s AND año = %s
+        ORDER BY id_carrera DESC
+        LIMIT 1
+    """, (nombre, tipo, año))
+    id_carrera = result[0][0] if result else None
 
     if not id_carrera:
         flash("No se pudo obtener el ID de la carrera creada.", "danger")
         return redirect(url_for("carreras"))
 
-    # --- CREAR CURSOS AUTOMÁTICOS ---
+    # --- Crear cursos automáticos según tipo ---
     cursos_a_crear = []
     if tipo.lower() == "tecnicatura":
         cursos_a_crear = ["Primero", "Segundo", "Tercero"]
@@ -778,11 +803,10 @@ def agregar_carrera():
 
     try:
         for curso_nombre in cursos_a_crear:
-            query_curso = """
+            ejecutar_sql("""
                 INSERT INTO cursos (id_carrera, nombre, año_calendario, activo)
                 VALUES (%s, %s, %s, 1)
-            """
-            ejecutar_sql(query_curso, (id_carrera, curso_nombre, año))
+            """, (id_carrera, curso_nombre, año))
     except Exception as e:
         flash(f"Error al crear los cursos automáticos: {e}", "danger")
         return redirect(url_for("carreras"))
@@ -829,6 +853,10 @@ def editar_carrera():
 
     if not turno:
         flash("El turno es obligatorio", "error")
+        return redirect(url_for("carreras"))
+    
+    if not ley_file:
+        flash("La ley es obligatoria", "error")
         return redirect(url_for("carreras"))
 
     # ✅ Validar duplicado (excepto el mismo id)
@@ -1241,6 +1269,16 @@ def agregar_materia():
         flash("Todos los campos son obligatorios.", "danger")
         return redirect(url_for("materias_por_curso", id_curso=id_curso))
 
+    # 🔹 Validar carga horaria numérica y no negativa
+    try:
+        carga_horaria = int(carga_horaria)
+        if carga_horaria <= 0:
+            flash("La carga horaria debe ser un número positivo.", "danger")
+            return redirect(url_for("materias_por_curso", id_curso=id_curso))
+    except ValueError:
+        flash("La carga horaria debe ser un número válido.", "danger")
+        return redirect(url_for("materias_por_curso", id_curso=id_curso))
+
     # --- Validar si ya existe una materia con el mismo nombre en el curso ---
     query_existente = """
         SELECT id_materia FROM materias
@@ -1250,8 +1288,6 @@ def agregar_materia():
     if existente and len(existente) > 0:
         flash(f"Ya existe una materia con el nombre '{nombre}' en este curso.", "danger")
         return redirect(url_for("materias_por_curso", id_curso=id_curso))
-
-    # ✅ Ya no se valida el tipo_campo duplicado
 
     # --- Insertar materia ---
     query = """
@@ -1263,6 +1299,7 @@ def agregar_materia():
 
     flash("Materia agregada correctamente.", "success")
     return redirect(url_for("materias_por_curso", id_curso=id_curso))
+
 
 # Editar materia
 @app.route("/editar_materia", methods=["POST"])
@@ -1285,6 +1322,16 @@ def editar_materia():
         flash("El nombre y el tipo de campo son obligatorios.", "danger")
         return redirect(url_for("materias_por_curso", id_curso=id_curso))
 
+    # 🔹 Validar carga horaria numérica y no negativa
+    try:
+        carga_horaria = int(carga_horaria)
+        if carga_horaria <= 0:
+            flash("La carga horaria debe ser un número positivo.", "danger")
+            return redirect(url_for("materias_por_curso", id_curso=id_curso))
+    except ValueError:
+        flash("La carga horaria debe ser un número válido.", "danger")
+        return redirect(url_for("materias_por_curso", id_curso=id_curso))
+
     # --- Validar duplicado de nombre ---
     query_existente = """
         SELECT id_materia FROM materias
@@ -1294,8 +1341,6 @@ def editar_materia():
     if existente and len(existente) > 0:
         flash(f"Ya existe otra materia con el nombre '{nombre}' en este curso.", "danger")
         return redirect(url_for("materias_por_curso", id_curso=id_curso))
-
-    # ✅ Ya no se valida tipo_campo duplicado
 
     # --- Actualizar materia ---
     query = """
@@ -1308,7 +1353,6 @@ def editar_materia():
 
     flash("Materia actualizada correctamente.", "success")
     return redirect(url_for("materias_por_curso", id_curso=id_curso))
-
 
 # Eliminar materia
 @app.route("/eliminar_materia", methods=["POST"])
